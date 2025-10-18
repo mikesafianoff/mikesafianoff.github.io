@@ -8,6 +8,7 @@
   --ink: #e0e0e0;
 }
 
+/* Reset & Base */
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
@@ -17,7 +18,7 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Header */
+/* Header Section */
 .hero {
   display: flex;
   justify-content: center;
@@ -26,9 +27,19 @@ html, body {
   background: #000;
 }
 
-/* Stage / Player */
-.stage { max-width: 1400px; margin: 0 auto; padding: 0 18px; }
-#player-frame { display: flex; justify-content: center; margin: 12px 0 40px; }
+/* Main Structure */
+.stage {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 18px;
+}
+
+/* Video Player Shell */
+#player-frame {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0 40px;
+}
 
 .video-shell {
   position: relative;
@@ -40,7 +51,8 @@ html, body {
   overflow: hidden;
   box-shadow: 0 24px 70px rgba(0, 0, 0, .6);
 }
-.video-shell > iframe {
+
+.video-shell iframe {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -50,9 +62,13 @@ html, body {
   transition: opacity var(--fade-t) ease;
   pointer-events: none;
 }
-.video-shell > .active { opacity: 1; pointer-events: auto; }
 
-/* Filmstrip */
+.video-shell iframe.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Filmstrip Area */
 .filmstrip-wrap {
   position: relative;
   display: flex;
@@ -61,21 +77,23 @@ html, body {
   padding: 6px 46px 26px;
   background: #000;
 }
+
 .filmstrip-viewport {
-  width: calc((var(--thumb-w)*5) + (var(--gap)*4));
+  width: calc((var(--thumb-w) * 5) + (var(--gap) * 4));
   max-width: 90vw;
   overflow: hidden;
   position: relative;
 }
+
 .filmstrip {
   display: flex;
   align-items: center;
   gap: var(--gap);
-  transition: transform var(--move-t) cubic-bezier(.28,.64,.24,1);
+  transition: transform var(--move-t) cubic-bezier(.28, .64, .24, 1);
   will-change: transform;
 }
 
-/* Thumbnails (no borders, clean images) */
+/* Thumbnails */
 .thumb {
   position: relative;
   width: var(--thumb-w);
@@ -83,28 +101,30 @@ html, body {
   flex: 0 0 var(--thumb-w);
   border-radius: 10px;
   background: #111 center/cover no-repeat;
+  cursor: pointer;
   opacity: .55;
   filter: saturate(.7) brightness(.7);
   transition:
     filter .28s ease,
     opacity .28s ease,
     box-shadow .28s ease;
-  cursor: pointer;
 }
-.thumb.playing {
-  opacity: 1;
-  filter: saturate(1) brightness(1);
-  box-shadow: 0 0 22px 4px rgba(150,200,255,.25); /* soft blue-white glow */
-}
+
 .thumb:hover {
   opacity: .9;
   filter: saturate(1.2) brightness(1.2);
 }
 
+.thumb.playing {
+  opacity: 1;
+  filter: saturate(1) brightness(1);
+  box-shadow: 0 0 22px 4px rgba(150, 200, 255, .25); /* glow */
+}
+
 /* Arrows */
 .arrow {
   position: absolute;
-  top: 42%; /* raised to visually center with strip */
+  top: 42%; /* centered relative to filmstrip */
   transform: translateY(-50%);
   background: none;
   border: none;
@@ -118,28 +138,16 @@ html, body {
   text-shadow: 0 4px 10px rgba(0,0,0,.6);
   transition: transform .18s ease, color .18s ease;
 }
+
 .arrow:hover {
   color: #fff;
   transform: translateY(-50%) scale(1.1);
 }
-#arrow-left { left: 10px; }
+
+#arrow-left  { left: 10px; }
 #arrow-right { right: 10px; }
 
-/* Email link */
-.contact-email {
-  text-align: center;
-  margin: 12px 0 40px;
-  font-size: 14px;
-}
-.contact-email a {
-  color: #4da3ff;
-  text-decoration: none;
-}
-.contact-email a:hover {
-  text-decoration: underline;
-}
-
-/* Slides button (for Google Slides embed) */
+/* Slides fullscreen icon */
 .slides-fs-btn {
   position: absolute;
   top: 12px;
@@ -153,9 +161,27 @@ html, body {
   cursor: pointer;
   z-index: 20;
   opacity: 0.85;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity .25s ease, transform .25s ease;
 }
+
 .slides-fs-btn:hover {
   opacity: 1;
   transform: scale(1.1);
+}
+
+/* Email (fixed center + color) */
+.contact-email {
+  text-align: center;
+  margin: 18px 0 50px;
+  width: 100%;
+}
+
+.contact-email a {
+  color: #4da3ff; /* correct blue */
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.contact-email a:hover {
+  text-decoration: underline;
 }
