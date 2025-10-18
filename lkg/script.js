@@ -1,3 +1,6 @@
+// Vimeo / Google Slides playlist, full and ordered.
+// Infinite seamless filmstrip with true pixel-centering. No scale drift.
+
 const SLIDES_EMBED =
   "https://docs.google.com/presentation/d/15g1qwIg_L9d_c9nFa1tIBOqP5yHU3__oGkUJSyVaSM8/embed?start=false&loop=false";
 
@@ -18,7 +21,7 @@ const videos = [
   { id: "78884991", title: "Cats & Dogs 2" },
   { id: "15718152", title: "Bioshock 2" },
   { id: "4833250", title: "Spiderwick Chronicles", thumb: "assets/spiderwick.png" },
-  { id: "4830488", title: "Superman Returns" }
+  { id: "124123873", title: "Superman Returns" }
 ];
 
 const shell = document.getElementById("video-shell");
@@ -43,7 +46,7 @@ async function fetchVimeoThumb(id) {
     vimeoThumbCache.set(id, url);
     return url;
   } catch {
-    const fallback = "assets/2016_reel.png";
+    const fallback = "assets/2010_reel.png";
     vimeoThumbCache.set(id, fallback);
     return fallback;
   }
@@ -88,6 +91,8 @@ async function buildThumb(realIndex) {
 
 async function render() {
   strip.innerHTML = "";
+
+  // Build 3x list for seamless wrap
   const repeatCount = 3;
   const frags = [];
   for (let i = 0; i < repeatCount; i++) {
@@ -96,10 +101,12 @@ async function render() {
   frags.forEach(el => strip.appendChild(el));
 
   calcUnit();
+
+  // Start in middle section, index 1
   state.current = videos.length + 1;
   requestAnimationFrame(() => {
     jumpTo(state.current);
-    showMedia(videos[1]); // start on 2022 Animated Reel
+    showMedia(videos[1]);
     highlight(1);
   });
 }
@@ -118,13 +125,10 @@ function translateForIndex(i) {
   return `translate3d(${x}px,0,0)`;
 }
 
-function applyTransform(i, animate = true) {
+function applyTransform(i, animate=true) {
   strip.style.transition = animate ? "transform 0.45s cubic-bezier(.25,.8,.25,1)" : "none";
   strip.style.transform = translateForIndex(i);
-  if (!animate) {
-    void strip.offsetWidth;
-    strip.style.transition = "";
-  }
+  if (!animate) { void strip.offsetWidth; strip.style.transition = ""; }
 }
 
 function jumpTo(i) { applyTransform(i, false); }
@@ -141,6 +145,7 @@ function realFromCurrent(i) {
   return ((i % N) + N) % N;
 }
 
+// Always center selected thumbnail using middle strip copy
 function playReal(realIndex) {
   const target = videos.length + realIndex;
   state.current = target;
@@ -149,9 +154,12 @@ function playReal(realIndex) {
   showMedia(videos[realIndex]);
 }
 
+// Arrow next/prev with seamless wrap that preserves centering
 function step(dir) {
   state.current += dir;
   moveTo(state.current);
+
+  // After animation, recycle into middle section to keep indices stable
   setTimeout(() => {
     const N = videos.length;
     if (state.current < N) state.current += N;
@@ -164,24 +172,23 @@ function step(dir) {
   showMedia(videos[real]);
 }
 
-// ✅ Corrected arrows: left = previous, right = next
-arrowL.addEventListener("click", () => step(-1));  // Left arrow moves left/back
-arrowR.addEventListener("click", () => step(1));   // Right arrow moves right/forward
+arrowL.addEventListener("click", () => step(-1));
+arrowR.addEventListener("click", () => step(1));
 
+/* Touch swipe (mobile only) */
 let dragging = false, startX = 0, startIndex = 0;
-function beginTouch(x) { dragging = true; startX = x; startIndex = state.current; strip.style.transition = "none"; }
-function moveTouch(x) { if (!dragging) return; const dx = x - startX; const idxFloat = startIndex - (dx / state.unit); strip.style.transform = translateForIndex(idxFloat); }
-function endTouch(x) {
-  if (!dragging) return;
+function beginTouch(x){ dragging = true; startX = x; startIndex = state.current; strip.style.transition = "none"; }
+function moveTouch(x){ if(!dragging) return; const dx = x - startX; const idxFloat = startIndex - (dx / state.unit); strip.style.transform = translateForIndex(idxFloat); }
+function endTouch(x){
+  if(!dragging) return;
   dragging = false;
   const dx = x - startX;
   if (Math.abs(dx) > state.unit * 0.25) step(dx < 0 ? 1 : -1);
   else moveTo(state.current);
 }
-
-viewport.addEventListener("touchstart", e => beginTouch(e.touches[0].clientX), { passive: true });
-viewport.addEventListener("touchmove", e => moveTouch(e.touches[0].clientX), { passive: true });
-viewport.addEventListener("touchend", e => endTouch(e.changedTouches[0].clientX), { passive: true });
+viewport.addEventListener("touchstart", e => beginTouch(e.touches[0].clientX), {passive:true});
+viewport.addEventListener("touchmove", e => moveTouch(e.touches[0].clientX), {passive:true});
+viewport.addEventListener("touchend", e => endTouch(e.changedTouches[0].clientX), {passive:true});
 
 let rto;
 window.addEventListener("resize", () => {
