@@ -69,7 +69,6 @@ html, body {
 .filmstrip-wrap {
   position: relative;
   display: flex;
-  align-items: center;
   justify-content: center;
   padding: 6px 46px 46px;
   background: #000;
@@ -79,7 +78,8 @@ html, body {
   max-width: 90vw;
   overflow: hidden;
   position: relative;
-  scroll-behavior: smooth;
+  display: flex;
+  align-items: center;
 }
 .filmstrip {
   display: flex;
@@ -117,13 +117,19 @@ html, body {
   background: #111 center/cover no-repeat;
   opacity: .55;
   filter: saturate(.7) brightness(.7);
-  transform: none;
   transition:
     filter .28s ease,
     opacity .28s ease,
     box-shadow .32s cubic-bezier(.24,.84,.22,1.1);
   cursor: pointer;
   border: none;
+}
+.thumb:hover {
+  opacity: .9;
+  filter: saturate(1) brightness(1);
+  box-shadow:
+    0 0 14px 4px rgba(120,180,255,.28),
+    0 0 22px 10px rgba(120,180,255,.18);
 }
 .thumb.playing {
   opacity: 1;
@@ -133,7 +139,7 @@ html, body {
     0 0 32px 8px rgba(180,200,255,.12);
 }
 
-/* Arrows */
+/* Arrows — now truly centered on strip */
 .arrow {
   position: absolute;
   top: 50%;
@@ -144,11 +150,13 @@ html, body {
   width: 38px;
   height: 38px;
   font-size: 42px;
-  line-height: 0;
   cursor: pointer;
-  z-index: 10;
+  z-index: 12;
   text-shadow: 0 4px 10px rgba(0,0,0,.6);
   transition: transform .18s ease, color .18s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .arrow:hover {
   color: #fff;
@@ -157,7 +165,7 @@ html, body {
 #arrow-left { left: 10px; }
 #arrow-right { right: 10px; }
 
-/* Google Slides Fullscreen Button */
+/* Fullscreen Button */
 .slides-fs-btn {
   position: absolute;
   top: 12px;

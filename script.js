@@ -121,8 +121,8 @@ function translateForIndex(i) {
   return `translate3d(${x}px,0,0)`;
 }
 
-function applyTransform(i, animate=true) {
-  strip.style.transition = animate ? "transform 0.5s cubic-bezier(.22,.74,.27,1.05)" : "none";
+function applyTransform(i, animate = true) {
+  strip.style.transition = animate ? "transform var(--move-t) cubic-bezier(.23,.82,.25,1)" : "none";
   strip.style.transform = translateForIndex(i);
   if (!animate) { void strip.offsetWidth; strip.style.transition = ""; }
 }
@@ -163,8 +163,9 @@ function step(dir) {
   showMedia(videos[real]);
 }
 
-arrowL.addEventListener("click", () => smoothStep(-1));
-arrowR.addEventListener("click", () => smoothStep(1));
+/* ✅ Corrected arrow directions */
+arrowL.addEventListener("click", () => smoothStep(-1));  // left moves backward
+arrowR.addEventListener("click", () => smoothStep(1));   // right moves forward
 
 /* Touch swipe (mobile only) */
 let dragging = false, startX = 0, startIndex = 0;
