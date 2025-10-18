@@ -25,18 +25,11 @@ html, body {
   padding: 18px 0 10px;
   background: #000;
 }
-.hero-img {
-  width: min(1280px, 92vw);
-  height: auto;
-  object-fit: contain;
-  display: block;
-}
 
 /* Stage / Player */
 .stage { max-width: 1400px; margin: 0 auto; padding: 0 18px; }
-#player-frame { display: flex; justify-content: center; margin: 12px 0 55px; } /* reduced spacing */
+#player-frame { display: flex; justify-content: center; margin: 12px 0 40px; }
 
-/* Video Player Shell */
 .video-shell {
   position: relative;
   width: 100%;
@@ -65,7 +58,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 46px 46px;
+  padding: 6px 46px 26px;
   background: #000;
 }
 .filmstrip-viewport {
@@ -82,8 +75,9 @@ html, body {
   will-change: transform;
 }
 
-/* Thumbnails */
+/* Thumbnails (no borders, clean images) */
 .thumb {
+  position: relative;
   width: var(--thumb-w);
   aspect-ratio: 16/9;
   flex: 0 0 var(--thumb-w);
@@ -96,7 +90,6 @@ html, body {
     opacity .28s ease,
     box-shadow .28s ease;
   cursor: pointer;
-  /* removed border */
 }
 .thumb.playing {
   opacity: 1;
@@ -111,7 +104,7 @@ html, body {
 /* Arrows */
 .arrow {
   position: absolute;
-  top: 40%; /* raised slightly */
+  top: 42%; /* raised to visually center with strip */
   transform: translateY(-50%);
   background: none;
   border: none;
@@ -132,7 +125,21 @@ html, body {
 #arrow-left { left: 10px; }
 #arrow-right { right: 10px; }
 
-/* Google Slides Fullscreen Button */
+/* Email link */
+.contact-email {
+  text-align: center;
+  margin: 12px 0 40px;
+  font-size: 14px;
+}
+.contact-email a {
+  color: #4da3ff;
+  text-decoration: none;
+}
+.contact-email a:hover {
+  text-decoration: underline;
+}
+
+/* Slides button (for Google Slides embed) */
 .slides-fs-btn {
   position: absolute;
   top: 12px;

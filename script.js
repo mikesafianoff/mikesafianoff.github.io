@@ -1,54 +1,70 @@
+/* ---------- Constants ---------- */
 const SLIDES_EMBED =
   "https://docs.google.com/presentation/d/15g1qwIg_L9d_c9nFa1tIBOqP5yHU3__oGkUJSyVaSM8/embed?start=false&loop=false";
 
+/* ---------- Video List (exact order) ---------- */
+/* Per your rule:
+   - If `thumb` is provided -> use it (no Vimeo fetch)
+   - If `thumb` is null/undefined for a Vimeo item -> fetch via oEmbed
+   - Meta/Slides always uses custom thumb
+*/
 const videos = [
-  { id: "meta", title: "Meta • Realtime / Avatars", thumb: "assets/meta_thumb.png", slides: SLIDES_EMBED },
-  { id: "841625715", title: "2022 Animated Reel", thumb: "assets/2022_reel.png" },
-  { id: "396309161", title: "Spies in Disguise", thumb: "assets/Spies_in_Disguise_logo.webp" },
-  { id: "135137438", title: "Ferdinand" },
-  { id: "197231614", title: "Ice Age 5" },
-  { id: "187104927", title: "2016 DreamWorks + VFX Reel", thumb: "assets/2016_reel.png" },
-  { id: "135130136", title: "Ted 2" },
-  { id: "261414975", title: "Home" },
-  { id: "15694987", title: "Turbo" },
-  { id: "15692714", title: "Madagascar 3" },
-  { id: "29300355", title: "Puss in Boots" },
-  { id: "13774020", title: "2010 Animation Reel", thumb: "assets/2010_reel.png" },
-  { id: "41671911", title: "Iron Man 2" },
-  { id: "78884991", title: "Cats & Dogs 2" },
-  { id: "15718152", title: "Bioshock 2" },
-  { id: "4833250", title: "Spiderwick Chronicles", thumb: "assets/spiderwick.png" },
-  { id: "4830488", title: "Superman Returns" }
+  { type: "slides", title: "Meta • Realtime / Avatars — (Google Slides embed)", url: SLIDES_EMBED, thumb: "assets/meta_thumb.png" },
+
+  { type: "vimeo", title: "2022 Animated Reel — (start on this video)", url: "https://vimeo.com/841625715?fl=pl&fe=sh", thumb: "assets/2022_reel.png" },
+  { type: "vimeo", title: "Spies in Disguise", url: "https://vimeo.com/396309161?fl=pl&fe=sh", thumb: "assets/Spies_in_Disguise_logo.webp" },
+  { type: "vimeo", title: "Ferdinand", url: "https://vimeo.com/261414975?fl=pl&fe=sh", thumb: null },
+  { type: "vimeo", title: "Ice Age 5", url: "https://vimeo.com/197231614?fl=pl&fe=sh", thumb: null },
+  { type: "vimeo", title: "2016 DreamWorks + VFX Reel", url: "https://vimeo.com/187104927?fl=pl&fe=sh", thumb: "assets/2016_reel.png" },
+  { type: "vimeo", title: "Ted 2", url: "https://vimeo.com/135137438?fl=pl&fe=sh", thumb: null },
+  { type: "vimeo", title: "Home", url: "https://vimeo.com/135130136?fl=pl&fe=sh", thumb: null },
+  { type: "vimeo", title: "Turbo", url: "https://vimeo.com/78884991?fl=pl&fe=sh", thumb: null },
+  { type: "vimeo", title: "Madagascar 3", url: "https://vimeo.com/41671911?fl=pl&fe=sh", thumb: null },
+  { type: "vimeo", title: "Puss in Boots", url: "https://vimeo.com/29300355?fl=pl&fe=sh", thumb: null },
+  { type: "vimeo", title: "2010 Animation Reel", url: "https://vimeo.com/13774020?fl=pl&fe=sh", thumb: "assets/2010_reel.png" },
+  { type: "vimeo", title: "Iron Man 2", url: "https://vimeo.com/15692714?fl=pl&fe=sh", thumb: null },
+  { type: "vimeo", title: "Cats & Dogs 2", url: "https://vimeo.com/15694987?fl=pl&fe=sh", thumb: null },
+  { type: "vimeo", title: "Bioshock 2", url: "https://vimeo.com/15718152", thumb: null },
+  { type: "vimeo", title: "Spiderwick Chronicles", url: "https://vimeo.com/4833250?fl=pl&fe=sh", thumb: "assets/spiderwick.png" },
+  { type: "vimeo", title: "Superman Returns", url: "https://vimeo.com/4830488?fl=pl&fe=sh", thumb: null }
 ];
 
+/* ---------- DOM ---------- */
 const shell = document.getElementById("video-shell");
 const strip = document.getElementById("filmstrip");
 const viewport = document.querySelector(".filmstrip-viewport");
 const arrowL = document.getElementById("arrow-left");
 const arrowR = document.getElementById("arrow-right");
 
+/* ---------- State ---------- */
 const state = { current: 0, unit: 0 };
 const vimeoThumbCache = new Map();
 
+/* ---------- Helpers ---------- */
 const cssNum = name => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
-const vimeoSrc = id => `https://player.vimeo.com/video/${id}?autoplay=0&title=0&byline=0&portrait=0`;
+const toPlayerUrl = (url) => url.replace("vimeo.com/", "player.vimeo.com/video/");
+const isVimeo = v => v.type === "vimeo";
 
-async function fetchVimeoThumb(id) {
-  if (vimeoThumbCache.has(id)) return vimeoThumbCache.get(id);
+/* Fetch Vimeo thumbnail via oEmbed when no custom thumb exists */
+async function fetchVimeoThumb(url) {
+  if (vimeoThumbCache.has(url)) return vimeoThumbCache.get(url);
   try {
-    const r = await fetch(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${id}`, { mode: "cors" });
+    const r = await fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`, { mode: "cors" });
     if (!r.ok) throw 0;
     const data = await r.json();
-    const url = (data.thumbnail_url || "").replace(/_640\.jpg$/, "_960.jpg");
-    vimeoThumbCache.set(id, url);
-    return url;
+    // Use higher-res if available by swapping common suffix
+    const thumb = (data.thumbnail_url || "").replace(/_640\.jpg$/i, "_960.jpg");
+    vimeoThumbCache.set(url, thumb);
+    return thumb;
   } catch {
+    // If oEmbed fails, use a neutral fallback (keeps UI intact)
     const fallback = "assets/2016_reel.png";
-    vimeoThumbCache.set(id, fallback);
+    vimeoThumbCache.set(url, fallback);
     return fallback;
   }
 }
 
+/* ---------- Player ---------- */
 function showMedia(item) {
   shell.innerHTML = "";
   const iframe = document.createElement("iframe");
@@ -56,36 +72,45 @@ function showMedia(item) {
   iframe.allowFullscreen = true;
   iframe.allow = "fullscreen; picture-in-picture";
   iframe.style.background = "#000";
-  iframe.src = item.slides ? item.slides : vimeoSrc(item.id);
+  iframe.src = item.type === "slides" ? item.url : toPlayerUrl(item.url);
   iframe.classList.add("active");
   shell.appendChild(iframe);
 
-  if (item.slides) {
+  if (item.type === "slides") {
     const fsBtn = document.createElement("div");
     fsBtn.className = "slides-fs-btn";
-    fsBtn.title = "Fullscreen";
+    fsBtn.title = "Open Slides";
     fsBtn.addEventListener("click", () => {
-      window.open(item.slides.replace("/embed?", "/present?"), "_blank");
+      window.open(item.url.replace("/embed?", "/present?"), "_blank");
     });
     shell.appendChild(fsBtn);
   }
 }
 
+/* ---------- Thumbnails ---------- */
 async function buildThumb(realIndex) {
   const v = videos[realIndex];
+
   const d = document.createElement("div");
   d.className = "thumb";
   d.dataset.realIndex = String(realIndex);
 
-  let bg = v.thumb;
-  if (!bg && /^[0-9]+$/.test(v.id)) bg = await fetchVimeoThumb(v.id);
-  if (!bg) bg = "assets/2016_reel.png";
+  let bg = v.thumb; // use custom if provided
+  if (!bg && isVimeo(v)) {
+    // fetch Vimeo thumbnail only if no custom thumb provided
+    bg = await fetchVimeoThumb(v.url);
+  }
+  if (!bg) {
+    // ultimate fallback (shouldn't be hit often)
+    bg = "assets/2016_reel.png";
+  }
   d.style.backgroundImage = `url('${bg}')`;
 
   d.addEventListener("click", () => playReal(realIndex));
   return d;
 }
 
+/* ---------- Render ---------- */
 async function render() {
   strip.innerHTML = "";
   const repeatCount = 3;
@@ -96,14 +121,16 @@ async function render() {
   frags.forEach(el => strip.appendChild(el));
 
   calcUnit();
+  // Start centered on 2022 reel (index 1)
   state.current = videos.length + 1;
   requestAnimationFrame(() => {
     jumpTo(state.current);
-    showMedia(videos[1]); // start on 2022 Animated Reel
+    showMedia(videos[1]);
     highlight(1);
   });
 }
 
+/* ---------- Layout / Motion ---------- */
 function calcUnit() {
   const el = strip.querySelector(".thumb");
   const w = el ? el.getBoundingClientRect().width : cssNum("--thumb-w");
@@ -119,10 +146,10 @@ function translateForIndex(i) {
 }
 
 function applyTransform(i, animate = true) {
-  strip.style.transition = animate ? "transform 0.45s cubic-bezier(.25,.8,.25,1)" : "none";
+  strip.style.transition = animate ? "transform 0.5s ease" : "none";
   strip.style.transform = translateForIndex(i);
   if (!animate) {
-    void strip.offsetWidth;
+    void strip.offsetWidth; // reflow to re-enable transition
     strip.style.transition = "";
   }
 }
@@ -130,6 +157,7 @@ function applyTransform(i, animate = true) {
 function jumpTo(i) { applyTransform(i, false); }
 function moveTo(i) { applyTransform(i, true); }
 
+/* ---------- Selection / Looping ---------- */
 function highlight(realIndex) {
   Array.from(strip.children).forEach(el =>
     el.classList.toggle("playing", parseInt(el.dataset.realIndex, 10) === realIndex)
@@ -142,7 +170,7 @@ function realFromCurrent(i) {
 }
 
 function playReal(realIndex) {
-  const target = videos.length + realIndex;
+  const target = videos.length + realIndex; // middle copy for seamless wrap
   state.current = target;
   moveTo(state.current);
   highlight(realIndex);
@@ -157,36 +185,38 @@ function step(dir) {
     if (state.current < N) state.current += N;
     else if (state.current >= N * 2) state.current -= N;
     jumpTo(state.current);
-  }, 460);
+  }, 490);
 
   const real = realFromCurrent(state.current);
   highlight(real);
   showMedia(videos[real]);
 }
 
-// ✅ Corrected arrows: left = previous, right = next
-arrowL.addEventListener("click", () => step(-1));  // Left arrow moves left/back
-arrowR.addEventListener("click", () => step(1));   // Right arrow moves right/forward
+/* ---------- Controls ---------- */
+arrowL.addEventListener("click", () => step(-1)); // left = previous
+arrowR.addEventListener("click", () => step(1));  // right = next
 
+/* ---------- Touch (mobile) ---------- */
 let dragging = false, startX = 0, startIndex = 0;
-function beginTouch(x) { dragging = true; startX = x; startIndex = state.current; strip.style.transition = "none"; }
-function moveTouch(x) { if (!dragging) return; const dx = x - startX; const idxFloat = startIndex - (dx / state.unit); strip.style.transform = translateForIndex(idxFloat); }
-function endTouch(x) {
-  if (!dragging) return;
+function beginTouch(x){ dragging = true; startX = x; startIndex = state.current; strip.style.transition = "none"; }
+function moveTouch(x){ if(!dragging) return; const dx = x - startX; const idxFloat = startIndex - (dx / state.unit); strip.style.transform = translateForIndex(idxFloat); }
+function endTouch(x){
+  if(!dragging) return;
   dragging = false;
   const dx = x - startX;
   if (Math.abs(dx) > state.unit * 0.25) step(dx < 0 ? 1 : -1);
   else moveTo(state.current);
 }
+viewport.addEventListener("touchstart", e => beginTouch(e.touches[0].clientX), {passive:true});
+viewport.addEventListener("touchmove",  e => moveTouch(e.touches[0].clientX), {passive:true});
+viewport.addEventListener("touchend",   e => endTouch(e.changedTouches[0].clientX), {passive:true});
 
-viewport.addEventListener("touchstart", e => beginTouch(e.touches[0].clientX), { passive: true });
-viewport.addEventListener("touchmove", e => moveTouch(e.touches[0].clientX), { passive: true });
-viewport.addEventListener("touchend", e => endTouch(e.changedTouches[0].clientX), { passive: true });
-
+/* ---------- Resize ---------- */
 let rto;
 window.addEventListener("resize", () => {
   clearTimeout(rto);
   rto = setTimeout(() => { calcUnit(); jumpTo(state.current); }, 120);
 });
 
+/* ---------- Init ---------- */
 render();
