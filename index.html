@@ -7,32 +7,31 @@
   <link rel="icon" href="assets/favicon.png" />
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* Slightly smaller header image (tight, centered) */
     .hero-img {
       width: min(1100px, 85vw);
       height: auto;
       object-fit: contain;
       display: block;
+      transition: transform .25s ease;
+    }
+    .hero-img:hover {
+      transform: scale(1.035);
     }
   </style>
 </head>
 <body>
-  <!-- Header -->
   <header class="hero">
-    <a href="https://www.linkedin.com/in/mikesafianoff?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app"
-       target="_blank" rel="noopener">
+    <a href="https://www.linkedin.com/in/mikesafianoff" target="_blank" rel="noopener">
       <img class="hero-img" src="assets/header.png"
            alt="MIKE SAFIANOFF — Senior / Lead / Supervising Animator" />
     </a>
   </header>
 
   <main class="stage">
-    <!-- Player -->
     <section id="player-frame">
       <div class="video-shell" id="video-shell"></div>
     </section>
 
-    <!-- Filmstrip -->
     <section class="filmstrip-wrap">
       <button id="arrow-left" class="arrow" aria-label="previous">❮</button>
       <div class="filmstrip-viewport">
@@ -41,9 +40,10 @@
       <button id="arrow-right" class="arrow" aria-label="next">❯</button>
     </section>
 
-    <!-- Email -->
     <div class="contact-email">
-      <a href="mailto:mikesafianoff@gmail.com">mikesafianoff@gmail.com</a>
+      <a id="email-link" href="mailto:mikesafianoff@gmail.com">mikesafianoff@gmail.com</a>
+      <img id="copy-icon" class="copy-icon" src="assets/Copy.png" alt="Copy email" title="Copy email" />
+      <span id="copy-text" class="copy-text">Copied</span>
     </div>
   </main>
 
