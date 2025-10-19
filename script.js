@@ -1,16 +1,18 @@
 /* ========================================
-   Portfolio Reel — Final Fixes
-   - Restore Vimeo thumbnail fetching + preload
-   - Desktop click: center EXACT clicked video (closest copy) + play
-   - Mobile: smoother swipe; landscape threshold lowered (no bounce-back)
-   - Infinite loop, arrows, slides FS, email copy preserved
+   Portfolio Reel — Final Momentum + Desktop Smooth + Loop
+   - Mobile: true inertia (free-scroll) -> auto-snaps multiple items based on velocity
+   - Desktop: smooth click-to-center; arrows move exactly one item
+   - Infinite loop preserved (tripled strip with normalization)
+   - Vimeo thumbnails restored + preloaded; draw immediately
 ======================================== */
 
 /* ---------- Constants ---------- */
 const SLIDES_EMBED =
   "https://docs.google.com/presentation/d/15g1qwIg_L9d_c9nFa1tIBOqP5yHU3__oGkUJSyVaSM8/embed?start=false&loop=false";
+const DEFAULT_THUMB = "assets/2016_reel.png";
+const EASE = "cubic-bezier(.22,.61,.36,1)"; // cinematic smooth
 
-/* ---------- Videos (last-known-good order) ---------- */
+/* ---------- Videos (order) ---------- */
 const videos = [
   { type: "slides", title: "Meta • Realtime / Avatars — (Google Slides embed)", url: SLIDES_EMBED, thumb: "assets/meta_thumb.png" },
   { type: "vimeo",  title: "2022 Animated Reel — (start on this video)", url: "https://vimeo.com/841625715?fl=pl&fe=sh", thumb: "assets/2022_reel.png" },
@@ -43,12 +45,13 @@ const arrowR   = document.getElementById("arrow-right");
 /* ---------- State ---------- */
 const state = { unit: 0, moving: false };
 const vimeoThumbCache = new Map();
-const resolvedThumbs  = new Map(); // realIndex -> resolved URL
+const resolvedThumbs  = new Map();
 
 /* ---------- Helpers ---------- */
 const cssNum      = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n));
 const toPlayerUrl = u => u.replace("vimeo.com/", "player.vimeo.com/video/");
 const isVimeo     = v => v.type === "vimeo";
+const isTouch     = () => ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 const isLandscape = () => window.innerWidth > window.innerHeight;
 
 /* ---------- Vimeo thumbnail fetch + preload ---------- */
@@ -59,17 +62,16 @@ async function fetchVimeoThumb(url) {
     const data = await r.json();
     let t = data.thumbnail_url || "";
     t = t.replace(/_640\.jpg$/i, "_960.jpg");
-    // Preload to ensure it draws immediately when used as background
-    await new Promise((res, rej) => {
+    await new Promise((res) => {
       const img = new Image();
       img.onload = () => res();
-      img.onerror = () => res(); // resolve anyway; we'll still set URL
+      img.onerror = () => res();
       img.src = t;
     });
     vimeoThumbCache.set(url, t);
     return t;
   } catch {
-    return "assets/2016_reel.png";
+    return DEFAULT_THUMB;
   }
 }
 
@@ -78,7 +80,7 @@ async function resolveThumb(realIndex) {
   const v = videos[realIndex];
   let url = v.thumb;
   if (!url && isVimeo(v)) url = await fetchVimeoThumb(v.url);
-  if (!url) url = "assets/2016_reel.png";
+  if (!url) url = DEFAULT_THUMB;
   resolvedThumbs.set(realIndex, url);
   return url;
 }
@@ -99,27 +101,18 @@ function showMedia(item) {
     const fs = document.createElement("div");
     fs.className = "slides-fs-btn";
     fs.title = "Open Slides";
-    fs.addEventListener("click", () => {
-      window.open(item.url.replace("/embed?", "/present?"), "_blank");
-    });
+    fs.addEventListener("click", () => window.open(item.url.replace("/embed?", "/present?"), "_blank"));
     shell.appendChild(fs);
   }
 }
 
-/* ---------- Build a thumbnail (draw immediately, then upgrade when ready) ---------- */
+/* ---------- Build thumbnail ---------- */
 async function createThumb(realIndex) {
   const d = document.createElement("div");
   d.className = "thumb";
   d.dataset.realIndex = String(realIndex);
-
-  // Set placeholder first so something is always visible
-  d.style.backgroundImage = `url('assets/2016_reel.png')`;
-
-  // Resolve actual URL (local or fetched) and set when ready
-  resolveThumb(realIndex).then(url => {
-    d.style.backgroundImage = `url('${url}')`;
-  });
-
+  d.style.backgroundImage = `url('${DEFAULT_THUMB}')`; // placeholder first
+  resolveThumb(realIndex).then(url => { d.style.backgroundImage = `url('${url}')`; });
   d.addEventListener("click", () => snapToReal(realIndex));
   return d;
 }
@@ -128,10 +121,10 @@ async function createThumb(realIndex) {
 async function render() {
   strip.innerHTML = "";
 
-  // Kick off all thumb resolutions early to warm cache
-  const warmPromises = videos.map((_, i) => resolveThumb(i));
+  // Warm all thumbs non-blocking
+  videos.forEach((_, i) => resolveThumb(i));
 
-  // Build 3 copies for seamless loop
+  // Triplicate for infinite loop
   for (let k = 0; k < 3; k++) {
     for (let i = 0; i < videos.length; i++) {
       strip.appendChild(await createThumb(i));
@@ -148,16 +141,13 @@ async function render() {
   showMedia(videos[1]);
 
   strip.addEventListener("transitionend", onTransitionEnd);
-
-  // Ensure preloads done in background (no await)
-  Promise.allSettled(warmPromises);
 }
 
-/* ---------- Layout / transforms ---------- */
+/* ---------- Layout / transform helpers ---------- */
 function calcUnit() {
   const el = strip.querySelector(".thumb");
-  const w = el ? el.getBoundingClientRect().width : cssNum("--thumb-w");
-  const gap = parseFloat(getComputedStyle(strip).gap || cssNum("--gap"));
+  const w = el ? el.getBoundingClientRect().width : cssNum("--thumb-w") || 180;
+  const gap = parseFloat(getComputedStyle(strip).gap || cssNum("--gap") || 36);
   state.unit = w + gap;
 }
 function translateForCentered(childIndex) {
@@ -166,53 +156,72 @@ function translateForCentered(childIndex) {
   return `translate3d(${x}px,0,0)`;
 }
 function centerOn(childIndex, animate = true) {
-  const moveT = getComputedStyle(document.documentElement).getPropertyValue("--move-t").trim() || "300ms";
-  strip.style.transition = animate ? `transform ${moveT} ease-out` : "none";
+  const moveT = (getComputedStyle(document.documentElement).getPropertyValue("--move-t") || "300ms").trim();
+  strip.style.transition = animate ? `transform ${moveT} ${EASE}` : "none";
   strip.style.transform = translateForCentered(childIndex);
   if (!animate) { void strip.offsetWidth; strip.style.transition = ""; }
 }
 
-/* ---------- Activate / glow ---------- */
+/* ---------- Active highlight ---------- */
 function activateByReal(realIndex) {
   Array.from(strip.children).forEach(el =>
     el.classList.toggle("playing", parseInt(el.dataset.realIndex, 10) === realIndex)
   );
 }
 
-/* ---------- Infinite loop mechanics ---------- */
+/* ---------- Infinite loop core ---------- */
 function getCenterIdx() {
   if (typeof strip._centerIdx !== "number") strip._centerIdx = videos.length + 1;
   return strip._centerIdx;
 }
-function step(dir) { // +1 next (left), -1 prev (right)
-  if (state.moving) return;
-  state.moving = true;
-  const newIdx = getCenterIdx() + dir;
-  strip._centerIdx = newIdx;
-  strip.style.transition = `transform var(--move-t) ease-out`;
-  strip.style.transform = translateForCentered(newIdx);
-  strip._pendingDir = dir;
+function normalizeAfterSteps(steps) {
+  // Recycle DOM without animation to keep center index consistent
+  if (steps > 0) {
+    for (let i = 0; i < steps; i++) strip.appendChild(strip.firstElementChild);
+  } else if (steps < 0) {
+    for (let i = 0; i < -steps; i++) strip.insertBefore(strip.lastElementChild, strip.firstElementChild);
+  }
+  strip.style.transition = "none";
+  centerOn(getCenterIdx(), false);
 }
 function onTransitionEnd(e) {
   if (e.target !== strip) return;
-  const dir = strip._pendingDir || 0;
-  if (!dir) { state.moving = false; return; }
-
-  if (dir === 1) strip.appendChild(strip.firstElementChild);
-  else if (dir === -1) strip.insertBefore(strip.lastElementChild, strip.firstElementChild);
-
-  strip.style.transition = "none";
-  centerOn(getCenterIdx(), false);
-  strip._pendingDir = 0;
+  const steps = strip._pendingSteps || 0;
+  if (!steps) { state.moving = false; return; }
+  normalizeAfterSteps(steps);
+  strip._pendingSteps = 0;
   state.moving = false;
-
   const centerChild = strip.children[getCenterIdx()];
   const realIndex = parseInt(centerChild.dataset.realIndex, 10);
   activateByReal(realIndex);
   showMedia(videos[realIndex]);
 }
 
-/* ---------- Click: jump to the NEAREST copy of the real index ---------- */
+/* ---------- Arrow: exactly one step ---------- */
+function stepOne(dir) { // dir = +1 next (left), -1 prev (right)
+  if (state.moving) return;
+  state.moving = true;
+  const targetIdx = getCenterIdx() + dir;
+  strip._centerIdx = targetIdx;
+  strip._pendingSteps = dir; // normalize by 1 after transition
+  centerOn(targetIdx, true);
+}
+
+/* ---------- Momentum target compute (mobile) ---------- */
+function stepsFromMomentum(totalDx, vPxPerMs) {
+  // vPxPerMs is positive or negative; decelerate to zero with a = 0.004 px/ms^2
+  const a = 0.004; // deceleration
+  const extra = Math.sign(vPxPerMs) * (vPxPerMs * vPxPerMs) / (2 * a); // s = v^2 / 2a
+  const intended = totalDx + extra; // px
+  let steps = Math.round(intended / state.unit);
+  if (steps === 0 && Math.abs(intended) > state.unit * 0.25) steps = Math.sign(intended); // ensure at least one if meaningful
+  const cap = 6; // don't jump too far
+  if (steps > cap) steps = cap;
+  if (steps < -cap) steps = -cap;
+  return steps;
+}
+
+/* ---------- Click: jump to nearest copy smoothly ---------- */
 function findClosestChildIndexForReal(realIndex) {
   const kids = strip.children;
   const center = getCenterIdx();
@@ -225,56 +234,67 @@ function findClosestChildIndexForReal(realIndex) {
   }
   return best;
 }
-
 function snapToReal(realIndex) {
+  if (state.moving) return;
   const targetIdx = findClosestChildIndexForReal(realIndex);
   if (targetIdx === -1) return;
-  strip._pendingDir = 0;
+  state.moving = true;
   strip._centerIdx = targetIdx;
-  // Smooth animate to clicked thumbnail
+  strip._pendingSteps = targetIdx - getCenterIdx();
   centerOn(targetIdx, true);
-  // After animation ends, ensure media and active state match
-  const onEnd = () => {
-    strip.removeEventListener("transitionend", onEnd);
-    activateByReal(realIndex);
-    showMedia(videos[realIndex]);
-  };
-  strip.addEventListener("transitionend", onEnd, { once: true });
+  // After the transition normalizes, onTransitionEnd updates media/active
 }
 
-/* ---------- Controls ---------- */
-arrowR.addEventListener("click", () => step(1));
-arrowL.addEventListener("click", () => step(-1));
+/* ---------- Build controls ---------- */
+arrowR.addEventListener("click", () => stepOne(1));
+arrowL.addEventListener("click", () => stepOne(-1));
 
-/* ---------- Touch / Mobile (smoother; landscape threshold lower) ---------- */
-let dragging = false, startX = 0, moveX = 0;
+/* ---------- Touch with inertia (mobile only) ---------- */
+let dragging = false, startX = 0, lastX = 0, lastT = 0, v = 0;
 wrap.addEventListener("touchstart", e => {
-  if (state.moving) return;
+  if (!isTouch() || state.moving) return;
   dragging = true;
-  startX = e.touches[0].clientX;
-  moveX = 0;
+  const t = e.touches[0];
+  startX = lastX = t.clientX;
+  lastT = performance.now();
+  v = 0;
   strip.style.transition = "none";
 }, { passive: true });
 
 wrap.addEventListener("touchmove", e => {
   if (!dragging) return;
-  const dx = e.touches[0].clientX - startX;
-  moveX = dx * 0.85; // light damp for smoother feel
+  const t = e.touches[0];
+  const now = performance.now();
+  const dx = t.clientX - lastX;
+  const dt = Math.max(1, now - lastT);
+  v = dx / dt; // px/ms
+  lastX = t.clientX;
+  lastT = now;
+
   const base = translateForCentered(getCenterIdx());
   const m = /translate3d\(([-0-9.]+)px/.exec(base);
   const baseX = m ? parseFloat(m[1]) : 0;
-  strip.style.transform = `translate3d(${baseX + moveX}px,0,0)`;
+  const totalDx = t.clientX - startX;
+  strip.style.transform = `translate3d(${baseX + totalDx}px,0,0)`;
 }, { passive: true });
 
-wrap.addEventListener("touchend", () => {
+wrap.addEventListener("touchend", e => {
   if (!dragging) return;
   dragging = false;
-  const dx = moveX;
-  const moveT = getComputedStyle(document.documentElement).getPropertyValue("--move-t").trim() || "300ms";
-  const threshold = state.unit * (isLandscape() ? 0.06 : 0.12); // lower threshold in landscape
-  strip.style.transition = `transform ${moveT} ease-out`;
-  if (Math.abs(dx) > threshold) step(dx < 0 ? 1 : -1);
-  else centerOn(getCenterIdx(), true);
+  const totalDx = lastX - startX; // px
+  // Orientation-aware assist: smaller threshold in landscape
+  const orientBoost = isLandscape() ? 1.0 : 1.0; // using momentum calc instead
+  const steps = stepsFromMomentum(totalDx * orientBoost, v);
+  if (steps === 0) {
+    centerOn(getCenterIdx(), true);
+    return;
+  }
+  if (state.moving) return;
+  state.moving = true;
+  const targetIdx = getCenterIdx() + steps;
+  strip._centerIdx = targetIdx;
+  strip._pendingSteps = steps;
+  centerOn(targetIdx, true);
 }, { passive: true });
 
 /* ---------- Resize + Orientation ---------- */
