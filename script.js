@@ -1,9 +1,10 @@
 /* ========================================
-   Portfolio Reel — Final Momentum + Desktop Smooth + Loop
-   - Mobile: true inertia (free-scroll) -> auto-snaps multiple items based on velocity
-   - Desktop: smooth click-to-center; arrows move exactly one item
-   - Infinite loop preserved (tripled strip with normalization)
-   - Vimeo thumbnails restored + preloaded; draw immediately
+   Portfolio Reel — Seamless Loop + Momentum + One-Step Arrows
+   - Infinite loop restored via DOM recycle with constant center index
+   - Arrows: exactly 1 step per click (smooth)
+   - Desktop: click thumbnail → smooth to exact video
+   - Mobile: real inertia (faster swipe = more steps), portrait & landscape
+   - Vimeo thumbs: fetch + preload; thumbs draw immediately
 ======================================== */
 
 /* ---------- Constants ---------- */
@@ -11,6 +12,7 @@ const SLIDES_EMBED =
   "https://docs.google.com/presentation/d/15g1qwIg_L9d_c9nFa1tIBOqP5yHU3__oGkUJSyVaSM8/embed?start=false&loop=false";
 const DEFAULT_THUMB = "assets/2016_reel.png";
 const EASE = "cubic-bezier(.22,.61,.36,1)"; // cinematic smooth
+const MOVE_T = () => (getComputedStyle(document.documentElement).getPropertyValue("--move-t") || "300ms").trim();
 
 /* ---------- Videos (order) ---------- */
 const videos = [
@@ -46,6 +48,7 @@ const arrowR   = document.getElementById("arrow-right");
 const state = { unit: 0, moving: false };
 const vimeoThumbCache = new Map();
 const resolvedThumbs  = new Map();
+const BASE_CENTER = () => videos.length + 1; // constant logical center index in middle copy
 
 /* ---------- Helpers ---------- */
 const cssNum      = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n));
@@ -111,7 +114,7 @@ async function createThumb(realIndex) {
   const d = document.createElement("div");
   d.className = "thumb";
   d.dataset.realIndex = String(realIndex);
-  d.style.backgroundImage = `url('${DEFAULT_THUMB}')`; // placeholder first
+  d.style.backgroundImage = `url('${DEFAULT_THUMB}')`; // placeholder immediately
   resolveThumb(realIndex).then(url => { d.style.backgroundImage = `url('${url}')`; });
   d.addEventListener("click", () => snapToReal(realIndex));
   return d;
@@ -121,10 +124,10 @@ async function createThumb(realIndex) {
 async function render() {
   strip.innerHTML = "";
 
-  // Warm all thumbs non-blocking
+  // Warm thumbs (non-blocking)
   videos.forEach((_, i) => resolveThumb(i));
 
-  // Triplicate for infinite loop
+  // Triplicate for seamless loop
   for (let k = 0; k < 3; k++) {
     for (let i = 0; i < videos.length; i++) {
       strip.appendChild(await createThumb(i));
@@ -133,10 +136,9 @@ async function render() {
 
   calcUnit();
 
-  // Start centered on index 1 (2022) in middle copy
-  const startIndex = videos.length + 1;
-  strip._centerIdx = startIndex;
-  centerOn(startIndex, false);
+  // Set logical center to the middle copy
+  strip._centerIdx = BASE_CENTER();
+  centerOn(strip._centerIdx, false);
   activateByReal(1);
   showMedia(videos[1]);
 
@@ -156,8 +158,7 @@ function translateForCentered(childIndex) {
   return `translate3d(${x}px,0,0)`;
 }
 function centerOn(childIndex, animate = true) {
-  const moveT = (getComputedStyle(document.documentElement).getPropertyValue("--move-t") || "300ms").trim();
-  strip.style.transition = animate ? `transform ${moveT} ${EASE}` : "none";
+  strip.style.transition = animate ? `transform ${MOVE_T()} ${EASE}` : "none";
   strip.style.transform = translateForCentered(childIndex);
   if (!animate) { void strip.offsetWidth; strip.style.transition = ""; }
 }
@@ -169,87 +170,87 @@ function activateByReal(realIndex) {
   );
 }
 
-/* ---------- Infinite loop core ---------- */
-function getCenterIdx() {
-  if (typeof strip._centerIdx !== "number") strip._centerIdx = videos.length + 1;
-  return strip._centerIdx;
-}
+/* ---------- Infinite loop core with constant center ---------- */
+function getCenterIdx() { return strip._centerIdx || (strip._centerIdx = BASE_CENTER()); }
+
 function normalizeAfterSteps(steps) {
-  // Recycle DOM without animation to keep center index consistent
+  // Move DOM nodes to keep the logical center fixed at BASE_CENTER()
   if (steps > 0) {
     for (let i = 0; i < steps; i++) strip.appendChild(strip.firstElementChild);
   } else if (steps < 0) {
     for (let i = 0; i < -steps; i++) strip.insertBefore(strip.lastElementChild, strip.firstElementChild);
   }
   strip.style.transition = "none";
-  centerOn(getCenterIdx(), false);
+  centerOn(BASE_CENTER(), false);
 }
+
 function onTransitionEnd(e) {
   if (e.target !== strip) return;
   const steps = strip._pendingSteps || 0;
   if (!steps) { state.moving = false; return; }
+
+  // Normalize loop
   normalizeAfterSteps(steps);
   strip._pendingSteps = 0;
   state.moving = false;
-  const centerChild = strip.children[getCenterIdx()];
+
+  // Update active + media based on middle child
+  const centerChild = strip.children[BASE_CENTER()];
   const realIndex = parseInt(centerChild.dataset.realIndex, 10);
   activateByReal(realIndex);
   showMedia(videos[realIndex]);
 }
 
-/* ---------- Arrow: exactly one step ---------- */
-function stepOne(dir) { // dir = +1 next (left), -1 prev (right)
+/* ---------- One-step arrows ---------- */
+function stepOne(dir) {
   if (state.moving) return;
   state.moving = true;
-  const targetIdx = getCenterIdx() + dir;
-  strip._centerIdx = targetIdx;
-  strip._pendingSteps = dir; // normalize by 1 after transition
-  centerOn(targetIdx, true);
+  strip._pendingSteps = dir; // ±1
+  centerOn(BASE_CENTER() + dir, true);
 }
 
-/* ---------- Momentum target compute (mobile) ---------- */
-function stepsFromMomentum(totalDx, vPxPerMs) {
-  // vPxPerMs is positive or negative; decelerate to zero with a = 0.004 px/ms^2
-  const a = 0.004; // deceleration
-  const extra = Math.sign(vPxPerMs) * (vPxPerMs * vPxPerMs) / (2 * a); // s = v^2 / 2a
-  const intended = totalDx + extra; // px
-  let steps = Math.round(intended / state.unit);
-  if (steps === 0 && Math.abs(intended) > state.unit * 0.25) steps = Math.sign(intended); // ensure at least one if meaningful
-  const cap = 6; // don't jump too far
-  if (steps > cap) steps = cap;
-  if (steps < -cap) steps = -cap;
-  return steps;
-}
-
-/* ---------- Click: jump to nearest copy smoothly ---------- */
+/* ---------- Desktop click: smooth to exact video (nearest copy) ---------- */
 function findClosestChildIndexForReal(realIndex) {
   const kids = strip.children;
-  const center = getCenterIdx();
   let best = -1, bestDist = Infinity;
   for (let i = 0; i < kids.length; i++) {
     if (parseInt(kids[i].dataset.realIndex, 10) === realIndex) {
-      const d = Math.abs(i - center);
+      const d = Math.abs(i - BASE_CENTER());
       if (d < bestDist) { bestDist = d; best = i; if (d === 0) break; }
     }
   }
   return best;
 }
+
 function snapToReal(realIndex) {
   if (state.moving) return;
   const targetIdx = findClosestChildIndexForReal(realIndex);
   if (targetIdx === -1) return;
+  const steps = targetIdx - BASE_CENTER();
+  if (steps === 0) {
+    activateByReal(realIndex);
+    showMedia(videos[realIndex]);
+    return;
+  }
   state.moving = true;
-  strip._centerIdx = targetIdx;
-  strip._pendingSteps = targetIdx - getCenterIdx();
-  centerOn(targetIdx, true);
-  // After the transition normalizes, onTransitionEnd updates media/active
+  strip._pendingSteps = steps;
+  centerOn(BASE_CENTER() + steps, true);
 }
 
-/* ---------- Build controls ---------- */
-arrowR.addEventListener("click", () => stepOne(1));
-arrowL.addEventListener("click", () => stepOne(-1));
+/* ---------- Momentum (mobile) ---------- */
+function stepsFromMomentum(totalDx, vPxPerMs) {
+  // Free-scroll inertia: s = v^2/(2a). Choose a gentle decel.
+  const a = 0.0045; // px/ms^2
+  const extra = Math.sign(vPxPerMs) * (vPxPerMs * vPxPerMs) / (2 * a);
+  const intended = totalDx + extra; // px
+  let steps = Math.round(intended / state.unit);
+  const cap = 6;
+  if (steps > cap) steps = cap;
+  if (steps < -cap) steps = -cap;
+  if (steps === 0 && Math.abs(intended) > state.unit * 0.25) steps = Math.sign(intended);
+  return steps;
+}
 
-/* ---------- Touch with inertia (mobile only) ---------- */
 let dragging = false, startX = 0, lastX = 0, lastT = 0, v = 0;
 wrap.addEventListener("touchstart", e => {
   if (!isTouch() || state.moving) return;
@@ -271,34 +272,37 @@ wrap.addEventListener("touchmove", e => {
   lastX = t.clientX;
   lastT = now;
 
-  const base = translateForCentered(getCenterIdx());
-  const m = /translate3d\(([-0-9.]+)px/.exec(base);
-  const baseX = m ? parseFloat(m[1]) : 0;
+  const baseXMatch = /translate3d\(([-0-9.]+)px/.exec(translateForCentered(BASE_CENTER()));
+  const baseX = baseXMatch ? parseFloat(baseXMatch[1]) : 0;
   const totalDx = t.clientX - startX;
   strip.style.transform = `translate3d(${baseX + totalDx}px,0,0)`;
 }, { passive: true });
 
-wrap.addEventListener("touchend", e => {
+wrap.addEventListener("touchend", () => {
   if (!dragging) return;
   dragging = false;
-  const totalDx = lastX - startX; // px
-  // Orientation-aware assist: smaller threshold in landscape
-  const orientBoost = isLandscape() ? 1.0 : 1.0; // using momentum calc instead
-  const steps = stepsFromMomentum(totalDx * orientBoost, v);
+  const totalDx = lastX - startX;
+  const steps = stepsFromMomentum(totalDx, v);
   if (steps === 0) {
-    centerOn(getCenterIdx(), true);
+    centerOn(BASE_CENTER(), true);
     return;
   }
   if (state.moving) return;
   state.moving = true;
-  const targetIdx = getCenterIdx() + steps;
-  strip._centerIdx = targetIdx;
   strip._pendingSteps = steps;
-  centerOn(targetIdx, true);
+  centerOn(BASE_CENTER() + steps, true);
 }, { passive: true });
 
+/* ---------- Controls ---------- */
+arrowR.addEventListener("click", () => stepOne(1));
+arrowL.addEventListener("click", () => stepOne(-1));
+
 /* ---------- Resize + Orientation ---------- */
-function recalcAndCenter() { calcUnit(); centerOn(getCenterIdx(), false); }
+function recalcAndCenter() {
+  calcUnit();
+  strip.style.transition = "none";
+  centerOn(BASE_CENTER(), false);
+}
 let rto;
 window.addEventListener("resize", () => { clearTimeout(rto); rto = setTimeout(recalcAndCenter, 120); });
 window.addEventListener("orientationchange", () => { setTimeout(recalcAndCenter, 120); });
