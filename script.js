@@ -1,7 +1,6 @@
 /* ========================================
    Portfolio Reel — FULL script.js (LKG-based)
-   Change: 2× faster scroll (CSS var) + snappier swipe threshold
-   No other behavior changed.
+   Change: unified 300ms motion via CSS var; smoother bezier
 ======================================== */
 
 /* ---------- Constants ---------- */
@@ -106,7 +105,7 @@ async function createThumb(realIndex) {
 /* ---------- Initial render ---------- */
 async function render() {
   strip.innerHTML = "";
-  // Build 3 copies for seamless loop
+  // Build 3 copies for seamless loop (no blank edges)
   for (let k = 0; k < 3; k++) {
     for (let i = 0; i < videos.length; i++) {
       strip.appendChild(await createThumb(i));
@@ -136,9 +135,9 @@ function translateForCentered(childIndex) {
   return `translate3d(${x}px,0,0)`;
 }
 function centerOn(childIndex, animate = true) {
-  // Uses CSS var --move-t (130ms) for speed
-  const moveT = getComputedStyle(document.documentElement).getPropertyValue("--move-t").trim() || "130ms";
-  strip.style.transition = animate ? `transform ${moveT} cubic-bezier(.28,.64,.24,1)` : "none";
+  // Uses CSS var --move-t (300ms) for speed to match CSS
+  const moveT = getComputedStyle(document.documentElement).getPropertyValue("--move-t").trim() || "300ms";
+  strip.style.transition = animate ? `transform ${moveT} cubic-bezier(.22,.61,.36,1)` : "none";
   strip.style.transform = translateForCentered(childIndex);
   if (!animate) { void strip.offsetWidth; strip.style.transition = ""; }
 }
@@ -150,7 +149,7 @@ function activateByReal(realIndex) {
   );
 }
 
-/* ---------- Infinite loop / direction (unchanged) ---------- */
+/* ---------- Infinite loop / direction ---------- */
 function getCenterIdx() {
   if (typeof strip._centerIdx !== "number") strip._centerIdx = videos.length + 1;
   return strip._centerIdx;
@@ -215,7 +214,7 @@ function snapToReal(realIndex) {
 arrowR.addEventListener("click", () => step(1));   // right → next (strip left)
 arrowL.addEventListener("click", () => step(-1));  // left  → prev (strip right)
 
-/* ---------- Touch / Mobile (more responsive swipe) ---------- */
+/* ---------- Touch / Mobile (smooth re-center; no snap-back) ---------- */
 let dragging = false, startX = 0;
 viewport.addEventListener("touchstart", e => {
   if (state.moving) return;
@@ -237,8 +236,9 @@ viewport.addEventListener("touchend", e => {
   if (!dragging) return;
   dragging = false;
   const dx = e.changedTouches[0].clientX - startX;
-  strip.style.transition = "";
-  const threshold = state.unit * 0.12; // reacts faster than 0.25
+  const moveT = getComputedStyle(document.documentElement).getPropertyValue("--move-t").trim() || "300ms";
+  const threshold = state.unit * 0.12; // quick responsiveness
+  strip.style.transition = `transform ${moveT} cubic-bezier(.22,.61,.36,1)`;
   if (Math.abs(dx) > threshold) step(dx < 0 ? 1 : -1); else centerOn(getCenterIdx(), true);
 }, { passive: true });
 
@@ -252,7 +252,7 @@ window.addEventListener("resize", () => {
 /* ---------- Init ---------- */
 render();
 
-/* ---------- Copy-to-Clipboard (unchanged) ---------- */
+/* ---------- Copy-to-Clipboard ---------- */
 const emailLink = document.getElementById("email-link");
 const copyIcon  = document.getElementById("copy-icon");
 const copyText  = document.getElementById("copy-text");

@@ -2,7 +2,7 @@
   --player-w: 1280px;
   --thumb-w: 210px;
   --gap: 36px;
-  --move-t: 130ms;  /* was 260ms — now 2× faster */
+  --move-t: 300ms;  /* unified with JS; smoother */
   --fade-t: 420ms;
   --bg: #000;
   --ink: #e0e0e0;
@@ -78,7 +78,7 @@ html, body {
   align-items:center;
   gap:var(--gap);
   will-change:transform;
-  transition:transform var(--move-t) cubic-bezier(.28,.64,.24,1);
+  transition:transform var(--move-t) cubic-bezier(.22,.61,.36,1);
 }
 
 /* Thumbnails */
