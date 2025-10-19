@@ -1,33 +1,52 @@
 /* ========================================
-   Portfolio Reel — LKG + fixes (gestures + unified scaling)
-   - 300ms transitions preserved via --move-t
-   - True infinite loop (no blank edges)
-   - Touch works in portrait/landscape; arrows fixed
-   - Player & filmstrip scale together on resize
+   Portfolio Reel — Full Script (Canvas Version)
+   - Infinite filmstrip (tripled thumbnails)
+   - 300ms transitions (CSS --move-t)
+   - Touch swipe + arrow nav
+   - Click thumb to center + play
+   - Copy email + Slides fullscreen
+   - Visual timeline flows RIGHT → LEFT (oldest at far right)
+   - Start centered on 2022 Animated Reel
+   - Keeper added with placeholder video + custom thumb
 ======================================== */
 
 /* ---------- Constants ---------- */
 const SLIDES_EMBED =
   "https://docs.google.com/presentation/d/15g1qwIg_L9d_c9nFa1tIBOqP5yHU3__oGkUJSyVaSM8/embed?start=false&loop=false";
 
-/* ---------- Videos (order preserved) ---------- */
+/* ---------- Videos ----------
+   IMPORTANT:
+   - We want the page to START centered on the 2022 reel.
+   - We want KEEPER to be immediately to the LEFT of Meta (newest on far left).
+   - To achieve that with seamless looping, we place KEEPER as the LAST item.
+   - Array order is the on-screen order LEFT → RIGHT around the center (because we center on index 1).
+   - With triplication, the item LEFT of index 0 comes from the LAST element (Keeper), satisfying: Keeper ← Meta ← 2022 (center).
+*/
 const videos = [
+  // Left of center: Meta
   { type: "slides", title: "Meta • Realtime / Avatars — (Google Slides embed)", url: SLIDES_EMBED, thumb: "assets/meta_thumb.png" },
+  // Center on load: 2022 Animated Reel
   { type: "vimeo",  title: "2022 Animated Reel — (start on this video)", url: "https://vimeo.com/841625715?fl=pl&fe=sh", thumb: "assets/2022_reel.png" },
-  { type: "vimeo",  title: "Spies in Disguise", url: "https://vimeo.com/396309161?fl=pl&fe=sh", thumb: "assets/Spies_in_Disguise_logo.webp" },
-  { type: "vimeo",  title: "Ferdinand", url: "https://vimeo.com/261414975?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Ice Age 5", url: "https://vimeo.com/197231614?fl=pl&fe=sh" },
+
+  // Moving rightwards (toward older work) from the center
+  { type: "vimeo",  title: "Spies in Disguise",          url: "https://vimeo.com/396309161?fl=pl&fe=sh", thumb: "assets/Spies_in_Disguise_logo.webp" },
+  { type: "vimeo",  title: "Ferdinand",                  url: "https://vimeo.com/261414975?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Ice Age 5",                  url: "https://vimeo.com/197231614?fl=pl&fe=sh" },
   { type: "vimeo",  title: "2016 DreamWorks + VFX Reel", url: "https://vimeo.com/187104927?fl=pl&fe=sh", thumb: "assets/2016_reel.png" },
-  { type: "vimeo",  title: "Ted 2", url: "https://vimeo.com/135137438?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Home", url: "https://vimeo.com/135130136?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Turbo", url: "https://vimeo.com/78884991?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Madagascar 3", url: "https://vimeo.com/41671911?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Puss in Boots", url: "https://vimeo.com/29300355?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "2010 Animation Reel", url: "https://vimeo.com/13774020?fl=pl&fe=sh", thumb: "assets/2010_reel.png" },
-  { type: "vimeo",  title: "Iron Man 2", url: "https://vimeo.com/15692714?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Cats & Dogs 2", url: "https://vimeo.com/15694987?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Spiderwick Chronicles", url: "https://vimeo.com/4833250?fl=pl&fe=sh", thumb: "assets/spiderwick.png" },
-  { type: "vimeo",  title: "Superman Returns", url: "https://vimeo.com/4830488?fl=pl&fe=sh" }
+  { type: "vimeo",  title: "Ted 2",                      url: "https://vimeo.com/135137438?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Home",                       url: "https://vimeo.com/135130136?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Turbo",                      url: "https://vimeo.com/78884991?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Madagascar 3",               url: "https://vimeo.com/41671911?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Puss in Boots",              url: "https://vimeo.com/29300355?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "2010 Animation Reel",        url: "https://vimeo.com/13774020?fl=pl&fe=sh", thumb: "assets/2010_reel.png" },
+  { type: "vimeo",  title: "Iron Man 2",                 url: "https://vimeo.com/15692714?fl=pl&fe=sh", thumb: "assets/iron_thumb.png" },
+  { type: "vimeo",  title: "Cats & Dogs 2",              url: "https://vimeo.com/15694987?fl=pl&fe=sh", thumb: "assets/ca2_thumb.png" },
+  { type: "vimeo",  title: "BioShock 2",                 url: "https://vimeo.com/15718152?fl=pl&fe=sh", thumb: "assets/bio2_thumb.png" },
+  { type: "vimeo",  title: "Spiderwick Chronicles",      url: "https://vimeo.com/4833250?fl=pl&fe=sh",  thumb: "assets/spiderwick.png" },
+  { type: "vimeo",  title: "Superman Returns",           url: "https://vimeo.com/4830488?fl=pl&fe=sh",  thumb: "assets/superman_thumb.png" },
+
+  // LAST so it appears to the LEFT of Meta in the loop: Keeper (placeholder)
+  { type: "vimeo",  title: "Keeper (placeholder)",        url: "https://vimeo.com/1128683237",           thumb: "assets/keeper_thumb.png" },
 ];
 
 /* ---------- DOM ---------- */
@@ -47,11 +66,11 @@ const cssNum      = n => parseFloat(getComputedStyle(document.documentElement).g
 const toPlayerUrl = u => u.replace("vimeo.com/", "player.vimeo.com/video/");
 const isVimeo     = v => v.type === "vimeo";
 
-/* ---------- Vimeo thumbnails (fallback-safe) ---------- */
+/* ---------- Vimeo thumbnail fallback (kept for safety) ---------- */
 async function fetchVimeoThumb(url) {
   if (vimeoThumbCache.has(url)) return vimeoThumbCache.get(url);
   try {
-    const r = await fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`, { mode: "cors" });
+    const r = await fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`);
     const data = await r.json();
     const t = (data.thumbnail_url || "").replace(/_640\.jpg$/i, "_960.jpg");
     vimeoThumbCache.set(url, t);
@@ -105,7 +124,7 @@ async function createThumb(realIndex) {
 /* ---------- Initial render ---------- */
 async function render() {
   strip.innerHTML = "";
-  // Build 3 copies for seamless loop (no blank edges)
+  // Build 3 copies for seamless loop
   for (let k = 0; k < 3; k++) {
     for (let i = 0; i < videos.length; i++) {
       strip.appendChild(await createThumb(i));
@@ -113,7 +132,7 @@ async function render() {
   }
   calcUnit();
 
-  // Start centered on 2022 reel (index 1) in the middle copy
+  // Start centered on index 1 (2022 Animated Reel) in the middle set
   const startIndex = videos.length + 1;
   centerOn(startIndex, false);
   activateByReal(1);
@@ -150,7 +169,7 @@ function activateByReal(realIndex) {
 
 /* ---------- Infinite loop / direction ---------- */
 function getCenterIdx() {
-  if (typeof strip._centerIdx !== "number") strip._centerIdx = videos.length + 1;
+  if (typeof strip._centerIdx !== "number") strip._centerIdx = videos.length + 1; // middle copy
   return strip._centerIdx;
 }
 function step(dir) { // dir = +1 → next (strip left) ; dir = -1 → prev (strip right)
@@ -165,8 +184,8 @@ function onTransitionEnd(e) {
   const dir = strip._pendingDir || 0;
   if (!dir) { state.moving = false; return; }
 
-  if (dir === 1) strip.appendChild(strip.firstElementChild); // moved left → take first to end
-  else if (dir === -1) strip.insertBefore(strip.lastElementChild, strip.firstElementChild); // moved right → take last to start
+  if (dir === 1) strip.appendChild(strip.firstElementChild);
+  else if (dir === -1) strip.insertBefore(strip.lastElementChild, strip.firstElementChild);
 
   strip.style.transition = "none";
   centerOn(getCenterIdx(), false);
@@ -179,7 +198,7 @@ function onTransitionEnd(e) {
   showMedia(videos[realIndex]);
 }
 
-/* ---------- Jump to specific real index (thumbnail click) ---------- */
+/* ---------- Jump to specific real index ---------- */
 function snapToReal(realIndex) {
   const kids = Array.from(strip.children);
   const centerIdx = getCenterIdx();
@@ -207,11 +226,11 @@ function snapToReal(realIndex) {
   tick();
 }
 
-/* ---------- Controls (clean, no aliases) ---------- */
+/* ---------- Controls ---------- */
 arrowR.addEventListener("click", () => step(1));
 arrowL.addEventListener("click", () => step(-1));
 
-/* ---------- Touch / Mobile (bind to full wrap; no snap-back) ---------- */
+/* ---------- Touch / Mobile ---------- */
 let dragging = false, startX = 0;
 wrap.addEventListener("touchstart", e => {
   if (state.moving) return;
@@ -249,12 +268,16 @@ window.addEventListener("orientationchange", () => { setTimeout(recalcAndCenter,
 /* ---------- Init ---------- */
 render();
 
-/* ---------- Copy-to-Clipboard (unchanged) ---------- */
+/* ---------- Copy-to-Clipboard (email) ---------- */
 const emailLink = document.getElementById("email-link");
 const copyIcon  = document.getElementById("copy-icon");
 const copyText  = document.getElementById("copy-text");
 if (copyIcon && emailLink && copyText) {
-  const flash = () => { copyText.classList.add("visible"); clearTimeout(copyText._h); copyText._h = setTimeout(() => copyText.classList.remove("visible"), 1500); };
+  const flash = () => {
+    copyText.classList.add("visible");
+    clearTimeout(copyText._h);
+    copyText._h = setTimeout(() => copyText.classList.remove("visible"), 1500);
+  };
   copyIcon.addEventListener("click", async () => {
     const text = (emailLink.textContent || "").trim();
     try { await navigator.clipboard.writeText(text); flash(); }
