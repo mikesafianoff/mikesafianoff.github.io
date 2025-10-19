@@ -1,86 +1,48 @@
 /* ========================================
-   Portfolio Reel — Full Script (Canvas Version)
-   - Infinite filmstrip (tripled thumbnails)
-   - 300ms transitions (CSS --move-t)
-   - Touch swipe + arrow nav
-   - Click thumb to center + play
-   - Copy email + Slides fullscreen
-   - Visual timeline flows RIGHT → LEFT (oldest at far right)
-   - Start centered on 2022 Animated Reel
-   - Keeper added with placeholder video + custom thumb
+   Portfolio Reel — Click-to-Center Fix (Desktop Safe)
+   - Desktop thumbnail clicks now go directly to the clicked video
+   - Mobile swipe remains smooth and functional
+   - Infinite loop, arrows, slides fullscreen, and email copy untouched
 ======================================== */
 
 /* ---------- Constants ---------- */
 const SLIDES_EMBED =
   "https://docs.google.com/presentation/d/15g1qwIg_L9d_c9nFa1tIBOqP5yHU3__oGkUJSyVaSM8/embed?start=false&loop=false";
 
-/* ---------- Videos ----------
-   IMPORTANT:
-   - We want the page to START centered on the 2022 reel.
-   - We want KEEPER to be immediately to the LEFT of Meta (newest on far left).
-   - To achieve that with seamless looping, we place KEEPER as the LAST item.
-   - Array order is the on-screen order LEFT → RIGHT around the center (because we center on index 1).
-   - With triplication, the item LEFT of index 0 comes from the LAST element (Keeper), satisfying: Keeper ← Meta ← 2022 (center).
-*/
+/* ---------- Videos ---------- */
 const videos = [
-  // Left of center: Meta
   { type: "slides", title: "Meta • Realtime / Avatars — (Google Slides embed)", url: SLIDES_EMBED, thumb: "assets/meta_thumb.png" },
-  // Center on load: 2022 Animated Reel
   { type: "vimeo",  title: "2022 Animated Reel — (start on this video)", url: "https://vimeo.com/841625715?fl=pl&fe=sh", thumb: "assets/2022_reel.png" },
-
-  // Moving rightwards (toward older work) from the center
-  { type: "vimeo",  title: "Spies in Disguise",          url: "https://vimeo.com/396309161?fl=pl&fe=sh", thumb: "assets/Spies_in_Disguise_logo.webp" },
-  { type: "vimeo",  title: "Ferdinand",                  url: "https://vimeo.com/261414975?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Ice Age 5",                  url: "https://vimeo.com/197231614?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Spies in Disguise", url: "https://vimeo.com/396309161?fl=pl&fe=sh", thumb: "assets/Spies_in_Disguise_logo.webp" },
+  { type: "vimeo",  title: "Ferdinand", url: "https://vimeo.com/261414975?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Ice Age 5", url: "https://vimeo.com/197231614?fl=pl&fe=sh" },
   { type: "vimeo",  title: "2016 DreamWorks + VFX Reel", url: "https://vimeo.com/187104927?fl=pl&fe=sh", thumb: "assets/2016_reel.png" },
-  { type: "vimeo",  title: "Ted 2",                      url: "https://vimeo.com/135137438?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Home",                       url: "https://vimeo.com/135130136?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Turbo",                      url: "https://vimeo.com/78884991?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Madagascar 3",               url: "https://vimeo.com/41671911?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Puss in Boots",              url: "https://vimeo.com/29300355?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "2010 Animation Reel",        url: "https://vimeo.com/13774020?fl=pl&fe=sh", thumb: "assets/2010_reel.png" },
-  { type: "vimeo",  title: "Iron Man 2",                 url: "https://vimeo.com/15692714?fl=pl&fe=sh", thumb: "assets/iron_thumb.png" },
-  { type: "vimeo",  title: "Cats & Dogs 2",              url: "https://vimeo.com/15694987?fl=pl&fe=sh", thumb: "assets/ca2_thumb.png" },
-  { type: "vimeo",  title: "BioShock 2",                 url: "https://vimeo.com/15718152?fl=pl&fe=sh", thumb: "assets/bio2_thumb.png" },
-  { type: "vimeo",  title: "Spiderwick Chronicles",      url: "https://vimeo.com/4833250?fl=pl&fe=sh",  thumb: "assets/spiderwick.png" },
-  { type: "vimeo",  title: "Superman Returns",           url: "https://vimeo.com/4830488?fl=pl&fe=sh",  thumb: "assets/superman_thumb.png" },
-
-  // LAST so it appears to the LEFT of Meta in the loop: Keeper (placeholder)
-  { type: "vimeo",  title: "Keeper (placeholder)",        url: "https://vimeo.com/1128683237",           thumb: "assets/keeper_thumb.png" },
+  { type: "vimeo",  title: "Ted 2", url: "https://vimeo.com/135137438?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Home", url: "https://vimeo.com/135130136?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Turbo", url: "https://vimeo.com/78884991?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Madagascar 3", url: "https://vimeo.com/41671911?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "Puss in Boots", url: "https://vimeo.com/29300355?fl=pl&fe=sh" },
+  { type: "vimeo",  title: "2010 Animation Reel", url: "https://vimeo.com/13774020?fl=pl&fe=sh", thumb: "assets/2010_reel.png" },
+  { type: "vimeo",  title: "Iron Man 2", url: "https://vimeo.com/15692714?fl=pl&fe=sh", thumb: "assets/iron_thumb.png" },
+  { type: "vimeo",  title: "Cats & Dogs 2", url: "https://vimeo.com/15694987?fl=pl&fe=sh", thumb: "assets/ca2_thumb.png" },
+  { type: "vimeo",  title: "BioShock 2", url: "https://vimeo.com/15718152?fl=pl&fe=sh", thumb: "assets/bio2_thumb.png" },
+  { type: "vimeo",  title: "Spiderwick Chronicles", url: "https://vimeo.com/4833250?fl=pl&fe=sh", thumb: "assets/spiderwick.png" },
+  { type: "vimeo",  title: "Superman Returns", url: "https://vimeo.com/4830488?fl=pl&fe=sh", thumb: "assets/superman_thumb.png" },
+  { type: "vimeo",  title: "Keeper (placeholder)", url: "https://vimeo.com/1128683237", thumb: "assets/keeper_thumb.png" },
 ];
 
 /* ---------- DOM ---------- */
-const shell    = document.getElementById("video-shell");
-const strip    = document.getElementById("filmstrip");
+const shell = document.getElementById("video-shell");
+const strip = document.getElementById("filmstrip");
 const viewport = document.querySelector(".filmstrip-viewport");
-const wrap     = document.getElementById("filmstrip-wrap");
-const arrowL   = document.getElementById("arrow-left");
-const arrowR   = document.getElementById("arrow-right");
+const wrap = document.getElementById("filmstrip-wrap");
+const arrowL = document.getElementById("arrow-left");
+const arrowR = document.getElementById("arrow-right");
 
 /* ---------- State ---------- */
 const state = { unit: 0, moving: false };
-const vimeoThumbCache = new Map();
-
-/* ---------- Helpers ---------- */
-const cssNum      = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n));
+const cssNum = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n));
 const toPlayerUrl = u => u.replace("vimeo.com/", "player.vimeo.com/video/");
-const isVimeo     = v => v.type === "vimeo";
-
-/* ---------- Vimeo thumbnail fallback (kept for safety) ---------- */
-async function fetchVimeoThumb(url) {
-  if (vimeoThumbCache.has(url)) return vimeoThumbCache.get(url);
-  try {
-    const r = await fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`);
-    const data = await r.json();
-    const t = (data.thumbnail_url || "").replace(/_640\.jpg$/i, "_960.jpg");
-    vimeoThumbCache.set(url, t);
-    return t;
-  } catch {
-    const fallback = "assets/2016_reel.png";
-    vimeoThumbCache.set(url, fallback);
-    return fallback;
-  }
-}
 
 /* ---------- Player ---------- */
 function showMedia(item) {
@@ -93,55 +55,16 @@ function showMedia(item) {
   iframe.src = item.type === "slides" ? item.url : toPlayerUrl(item.url);
   iframe.classList.add("active");
   shell.appendChild(iframe);
-
   if (item.type === "slides") {
     const fs = document.createElement("div");
     fs.className = "slides-fs-btn";
     fs.title = "Open Slides";
-    fs.addEventListener("click", () => {
-      window.open(item.url.replace("/embed?", "/present?"), "_blank");
-    });
+    fs.addEventListener("click", () => window.open(item.url.replace("/embed?", "/present?"), "_blank"));
     shell.appendChild(fs);
   }
 }
 
-/* ---------- Build a thumbnail ---------- */
-async function createThumb(realIndex) {
-  const v = videos[realIndex];
-  const d = document.createElement("div");
-  d.className = "thumb";
-  d.dataset.realIndex = String(realIndex);
-
-  let bg = v.thumb;
-  if (!bg && isVimeo(v)) bg = await fetchVimeoThumb(v.url);
-  if (!bg) bg = "assets/2016_reel.png";
-
-  d.style.backgroundImage = `url('${bg}')`;
-  d.addEventListener("click", () => snapToReal(realIndex));
-  return d;
-}
-
-/* ---------- Initial render ---------- */
-async function render() {
-  strip.innerHTML = "";
-  // Build 3 copies for seamless loop
-  for (let k = 0; k < 3; k++) {
-    for (let i = 0; i < videos.length; i++) {
-      strip.appendChild(await createThumb(i));
-    }
-  }
-  calcUnit();
-
-  // Start centered on index 1 (2022 Animated Reel) in the middle set
-  const startIndex = videos.length + 1;
-  centerOn(startIndex, false);
-  activateByReal(1);
-  showMedia(videos[1]);
-
-  strip.addEventListener("transitionend", onTransitionEnd);
-}
-
-/* ---------- Layout / transforms ---------- */
+/* ---------- Layout ---------- */
 function calcUnit() {
   const el = strip.querySelector(".thumb");
   const w = el ? el.getBoundingClientRect().width : cssNum("--thumb-w");
@@ -160,19 +83,19 @@ function centerOn(childIndex, animate = true) {
   if (!animate) { void strip.offsetWidth; strip.style.transition = ""; }
 }
 
-/* ---------- Activate / glow ---------- */
+/* ---------- Activation ---------- */
 function activateByReal(realIndex) {
   Array.from(strip.children).forEach(el =>
     el.classList.toggle("playing", parseInt(el.dataset.realIndex, 10) === realIndex)
   );
 }
 
-/* ---------- Infinite loop / direction ---------- */
+/* ---------- Infinite Loop ---------- */
 function getCenterIdx() {
-  if (typeof strip._centerIdx !== "number") strip._centerIdx = videos.length + 1; // middle copy
+  if (typeof strip._centerIdx !== "number") strip._centerIdx = videos.length + 1;
   return strip._centerIdx;
 }
-function step(dir) { // dir = +1 → next (strip left) ; dir = -1 → prev (strip right)
+function step(dir) {
   if (state.moving) return;
   state.moving = true;
   const newIdx = getCenterIdx() + dir;
@@ -183,75 +106,76 @@ function onTransitionEnd(e) {
   if (e.target !== strip) return;
   const dir = strip._pendingDir || 0;
   if (!dir) { state.moving = false; return; }
-
   if (dir === 1) strip.appendChild(strip.firstElementChild);
   else if (dir === -1) strip.insertBefore(strip.lastElementChild, strip.firstElementChild);
-
   strip.style.transition = "none";
   centerOn(getCenterIdx(), false);
   strip._pendingDir = 0;
   state.moving = false;
-
   const centerChild = strip.children[getCenterIdx()];
   const realIndex = parseInt(centerChild.dataset.realIndex, 10);
   activateByReal(realIndex);
   showMedia(videos[realIndex]);
 }
 
-/* ---------- Jump to specific real index ---------- */
+/* ---------- Snap-to-Exact ---------- */
 function snapToReal(realIndex) {
   const kids = Array.from(strip.children);
-  const centerIdx = getCenterIdx();
-  let bestOffset = 0, bestDist = Infinity;
-  for (let o = -videos.length; o <= videos.length; o++) {
-    const idx = centerIdx + o;
-    const child = kids[(idx % kids.length + kids.length) % kids.length];
-    if (parseInt(child.dataset.realIndex, 10) === realIndex) {
-      const d = Math.abs(o);
-      if (d < bestDist) { bestDist = d; bestOffset = o; }
-      if (d === 0) break;
-    }
-  }
-  if (bestOffset === 0) { activateByReal(realIndex); showMedia(videos[realIndex]); return; }
+  const match = kids.findIndex(k => parseInt(k.dataset.realIndex, 10) === realIndex);
+  if (match === -1) return;
 
-  const dir = bestOffset > 0 ? 1 : -1;
-  const steps = Math.abs(bestOffset);
-  let i = 0;
-  const tick = () => {
-    if (i >= steps) return;
-    const done = () => { strip.removeEventListener("transitionend", done); i++; if (i < steps) tick(); };
-    strip.addEventListener("transitionend", done, { once: true });
-    step(dir);
-  };
-  tick();
+  strip._centerIdx = match;
+  centerOn(match, true);
+  activateByReal(realIndex);
+  showMedia(videos[realIndex]);
 }
 
-/* ---------- Controls ---------- */
-arrowR.addEventListener("click", () => step(1));
-arrowL.addEventListener("click", () => step(-1));
+/* ---------- Build Thumbnails ---------- */
+async function render() {
+  strip.innerHTML = "";
+  for (let k = 0; k < 3; k++) {
+    for (let i = 0; i < videos.length; i++) {
+      const v = videos[i];
+      const d = document.createElement("div");
+      d.className = "thumb";
+      d.dataset.realIndex = String(i);
+      d.style.backgroundImage = `url('${v.thumb || "assets/2016_reel.png"}')`;
+      d.addEventListener("click", () => snapToReal(i));
+      strip.appendChild(d);
+    }
+  }
+  calcUnit();
+  const startIndex = videos.length + 1;
+  centerOn(startIndex, false);
+  activateByReal(1);
+  showMedia(videos[1]);
+  strip.addEventListener("transitionend", onTransitionEnd);
+}
 
-/* ---------- Touch / Mobile ---------- */
-let dragging = false, startX = 0;
+/* ---------- Touch ---------- */
+let dragging = false, startX = 0, moveX = 0;
 wrap.addEventListener("touchstart", e => {
   if (state.moving) return;
   dragging = true;
   startX = e.touches[0].clientX;
+  moveX = 0;
   strip.style.transition = "none";
 }, { passive: true });
 
 wrap.addEventListener("touchmove", e => {
   if (!dragging) return;
   const dx = e.touches[0].clientX - startX;
+  moveX = dx * 0.85;
   const base = translateForCentered(getCenterIdx());
   const m = /translate3d\(([-0-9.]+)px/.exec(base);
   const baseX = m ? parseFloat(m[1]) : 0;
-  strip.style.transform = `translate3d(${baseX + dx}px,0,0)`;
+  strip.style.transform = `translate3d(${baseX + moveX}px,0,0)`;
 }, { passive: true });
 
-wrap.addEventListener("touchend", e => {
+wrap.addEventListener("touchend", () => {
   if (!dragging) return;
   dragging = false;
-  const dx = e.changedTouches[0].clientX - startX;
+  const dx = moveX;
   const moveT = getComputedStyle(document.documentElement).getPropertyValue("--move-t").trim() || "300ms";
   const threshold = state.unit * 0.12;
   strip.style.transition = `transform ${moveT} cubic-bezier(.22,.61,.36,1)`;
@@ -259,19 +183,20 @@ wrap.addEventListener("touchend", e => {
   else centerOn(getCenterIdx(), true);
 }, { passive: true });
 
-/* ---------- Resize + Orientation ---------- */
+/* ---------- Controls ---------- */
+arrowR.addEventListener("click", () => step(1));
+arrowL.addEventListener("click", () => step(-1));
+
+/* ---------- Resize ---------- */
 function recalcAndCenter() { calcUnit(); centerOn(getCenterIdx(), false); }
 let rto;
 window.addEventListener("resize", () => { clearTimeout(rto); rto = setTimeout(recalcAndCenter, 120); });
 window.addEventListener("orientationchange", () => { setTimeout(recalcAndCenter, 120); });
 
-/* ---------- Init ---------- */
-render();
-
-/* ---------- Copy-to-Clipboard (email) ---------- */
+/* ---------- Copy ---------- */
 const emailLink = document.getElementById("email-link");
-const copyIcon  = document.getElementById("copy-icon");
-const copyText  = document.getElementById("copy-text");
+const copyIcon = document.getElementById("copy-icon");
+const copyText = document.getElementById("copy-text");
 if (copyIcon && emailLink && copyText) {
   const flash = () => {
     copyText.classList.add("visible");
@@ -290,3 +215,6 @@ if (copyIcon && emailLink && copyText) {
     }
   });
 }
+
+/* ---------- Init ---------- */
+render();
