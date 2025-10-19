@@ -1,6 +1,9 @@
 /* ========================================
-   Portfolio Reel — FULL script.js (LKG-based)
-   Change: unified 300ms motion via CSS var; smoother bezier
+   Portfolio Reel — LKG + fixes (gestures + unified scaling)
+   - 300ms transitions preserved via --move-t
+   - True infinite loop (no blank edges)
+   - Touch works in portrait/landscape; arrows fixed
+   - Player & filmstrip scale together on resize
 ======================================== */
 
 /* ---------- Constants ---------- */
@@ -23,7 +26,6 @@ const videos = [
   { type: "vimeo",  title: "2010 Animation Reel", url: "https://vimeo.com/13774020?fl=pl&fe=sh", thumb: "assets/2010_reel.png" },
   { type: "vimeo",  title: "Iron Man 2", url: "https://vimeo.com/15692714?fl=pl&fe=sh" },
   { type: "vimeo",  title: "Cats & Dogs 2", url: "https://vimeo.com/15694987?fl=pl&fe=sh" },
-  { type: "vimeo",  title: "Bioshock 2", url: "https://vimeo.com/15718152" },
   { type: "vimeo",  title: "Spiderwick Chronicles", url: "https://vimeo.com/4833250?fl=pl&fe=sh", thumb: "assets/spiderwick.png" },
   { type: "vimeo",  title: "Superman Returns", url: "https://vimeo.com/4830488?fl=pl&fe=sh" }
 ];
@@ -32,14 +34,12 @@ const videos = [
 const shell    = document.getElementById("video-shell");
 const strip    = document.getElementById("filmstrip");
 const viewport = document.querySelector(".filmstrip-viewport");
+const wrap     = document.getElementById("filmstrip-wrap");
 const arrowL   = document.getElementById("arrow-left");
 const arrowR   = document.getElementById("arrow-right");
 
 /* ---------- State ---------- */
-const state = {
-  unit: 0,        // width + gap of a thumbnail
-  moving: false,  // prevent double steps during transition
-};
+const state = { unit: 0, moving: false };
 const vimeoThumbCache = new Map();
 
 /* ---------- Helpers ---------- */
@@ -135,7 +135,6 @@ function translateForCentered(childIndex) {
   return `translate3d(${x}px,0,0)`;
 }
 function centerOn(childIndex, animate = true) {
-  // Uses CSS var --move-t (300ms) for speed to match CSS
   const moveT = getComputedStyle(document.documentElement).getPropertyValue("--move-t").trim() || "300ms";
   strip.style.transition = animate ? `transform ${moveT} cubic-bezier(.22,.61,.36,1)` : "none";
   strip.style.transform = translateForCentered(childIndex);
@@ -154,8 +153,7 @@ function getCenterIdx() {
   if (typeof strip._centerIdx !== "number") strip._centerIdx = videos.length + 1;
   return strip._centerIdx;
 }
-function step(dir) {
-  // dir = +1 → NEXT (strip moves LEFT), dir = -1 → PREV (strip moves RIGHT)
+function step(dir) { // dir = +1 → next (strip left) ; dir = -1 → prev (strip right)
   if (state.moving) return;
   state.moving = true;
   const newIdx = getCenterIdx() + dir;
@@ -185,7 +183,6 @@ function onTransitionEnd(e) {
 function snapToReal(realIndex) {
   const kids = Array.from(strip.children);
   const centerIdx = getCenterIdx();
-
   let bestOffset = 0, bestDist = Infinity;
   for (let o = -videos.length; o <= videos.length; o++) {
     const idx = centerIdx + o;
@@ -210,20 +207,20 @@ function snapToReal(realIndex) {
   tick();
 }
 
-/* ---------- Controls ---------- */
-arrowR.addEventListener("click", () => step(1));   // right → next (strip left)
-arrowL.addEventListener("click", () => step(-1));  // left  → prev (strip right)
+/* ---------- Controls (clean, no aliases) ---------- */
+arrowR.addEventListener("click", () => step(1));
+arrowL.addEventListener("click", () => step(-1));
 
-/* ---------- Touch / Mobile (smooth re-center; no snap-back) ---------- */
+/* ---------- Touch / Mobile (bind to full wrap; no snap-back) ---------- */
 let dragging = false, startX = 0;
-viewport.addEventListener("touchstart", e => {
+wrap.addEventListener("touchstart", e => {
   if (state.moving) return;
   dragging = true;
   startX = e.touches[0].clientX;
   strip.style.transition = "none";
 }, { passive: true });
 
-viewport.addEventListener("touchmove", e => {
+wrap.addEventListener("touchmove", e => {
   if (!dragging) return;
   const dx = e.touches[0].clientX - startX;
   const base = translateForCentered(getCenterIdx());
@@ -232,51 +229,41 @@ viewport.addEventListener("touchmove", e => {
   strip.style.transform = `translate3d(${baseX + dx}px,0,0)`;
 }, { passive: true });
 
-viewport.addEventListener("touchend", e => {
+wrap.addEventListener("touchend", e => {
   if (!dragging) return;
   dragging = false;
   const dx = e.changedTouches[0].clientX - startX;
   const moveT = getComputedStyle(document.documentElement).getPropertyValue("--move-t").trim() || "300ms";
-  const threshold = state.unit * 0.12; // quick responsiveness
+  const threshold = state.unit * 0.12;
   strip.style.transition = `transform ${moveT} cubic-bezier(.22,.61,.36,1)`;
-  if (Math.abs(dx) > threshold) step(dx < 0 ? 1 : -1); else centerOn(getCenterIdx(), true);
+  if (Math.abs(dx) > threshold) step(dx < 0 ? 1 : -1);
+  else centerOn(getCenterIdx(), true);
 }, { passive: true });
 
-/* ---------- Resize ---------- */
+/* ---------- Resize + Orientation ---------- */
+function recalcAndCenter() { calcUnit(); centerOn(getCenterIdx(), false); }
 let rto;
-window.addEventListener("resize", () => {
-  clearTimeout(rto);
-  rto = setTimeout(() => { calcUnit(); centerOn(getCenterIdx(), false); }, 120);
-});
+window.addEventListener("resize", () => { clearTimeout(rto); rto = setTimeout(recalcAndCenter, 120); });
+window.addEventListener("orientationchange", () => { setTimeout(recalcAndCenter, 120); });
 
 /* ---------- Init ---------- */
 render();
 
-/* ---------- Copy-to-Clipboard ---------- */
+/* ---------- Copy-to-Clipboard (unchanged) ---------- */
 const emailLink = document.getElementById("email-link");
 const copyIcon  = document.getElementById("copy-icon");
 const copyText  = document.getElementById("copy-text");
 if (copyIcon && emailLink && copyText) {
-  const flash = () => {
-    copyText.classList.add("visible");
-    clearTimeout(copyText._h);
-    copyText._h = setTimeout(() => copyText.classList.remove("visible"), 1500);
-  };
+  const flash = () => { copyText.classList.add("visible"); clearTimeout(copyText._h); copyText._h = setTimeout(() => copyText.classList.remove("visible"), 1500); };
   copyIcon.addEventListener("click", async () => {
     const text = (emailLink.textContent || "").trim();
-    try {
-      await navigator.clipboard.writeText(text);
-      flash();
-    } catch {
+    try { await navigator.clipboard.writeText(text); flash(); }
+    catch {
       const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
       try { document.execCommand("copy"); } catch {}
-      document.body.removeChild(ta);
-      flash();
+      document.body.removeChild(ta); flash();
     }
   });
 }
