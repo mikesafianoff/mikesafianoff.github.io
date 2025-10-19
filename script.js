@@ -1,18 +1,20 @@
 /* ========================================
-   Portfolio Reel — Seamless Loop + Momentum + One-Step Arrows
-   - Infinite loop restored via DOM recycle with constant center index
-   - Arrows: exactly 1 step per click (smooth)
+   Portfolio Reel — Speed-Sensitive Swipe + Seamless Loop
+   - Infinite loop restored via triplicate + recycle
+   - Arrows: exactly 1 step per click (ease-out)
    - Desktop: click thumbnail → smooth to exact video
-   - Mobile: real inertia (faster swipe = more steps), portrait & landscape
-   - Vimeo thumbs: fetch + preload; thumbs draw immediately
+   - Mobile: speed-sensitive swipe (1–4 steps), ease-out, correct direction
+   - Vimeo thumbs: fetch + preload; draw immediately
 ======================================== */
 
 /* ---------- Constants ---------- */
 const SLIDES_EMBED =
   "https://docs.google.com/presentation/d/15g1qwIg_L9d_c9nFa1tIBOqP5yHU3__oGkUJSyVaSM8/embed?start=false&loop=false";
 const DEFAULT_THUMB = "assets/2016_reel.png";
-const EASE = "cubic-bezier(.22,.61,.36,1)"; // cinematic smooth
-const MOVE_T = () => (getComputedStyle(document.documentElement).getPropertyValue("--move-t") || "300ms").trim();
+const EASE = "ease-out";
+const MOVE_T = () =>
+  (getComputedStyle(document.documentElement).getPropertyValue("--move-t") || "300ms").trim();
+const MAX_STEPS = 4; // max thumbnails per fast swipe
 
 /* ---------- Videos (order) ---------- */
 const videos = [
@@ -48,14 +50,12 @@ const arrowR   = document.getElementById("arrow-right");
 const state = { unit: 0, moving: false };
 const vimeoThumbCache = new Map();
 const resolvedThumbs  = new Map();
-const BASE_CENTER = () => videos.length + 1; // constant logical center index in middle copy
+const BASE_CENTER = () => videos.length + 1;
 
 /* ---------- Helpers ---------- */
-const cssNum      = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n));
 const toPlayerUrl = u => u.replace("vimeo.com/", "player.vimeo.com/video/");
 const isVimeo     = v => v.type === "vimeo";
 const isTouch     = () => ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
-const isLandscape = () => window.innerWidth > window.innerHeight;
 
 /* ---------- Vimeo thumbnail fetch + preload ---------- */
 async function fetchVimeoThumb(url) {
@@ -114,7 +114,7 @@ async function createThumb(realIndex) {
   const d = document.createElement("div");
   d.className = "thumb";
   d.dataset.realIndex = String(realIndex);
-  d.style.backgroundImage = `url('${DEFAULT_THUMB}')`; // placeholder immediately
+  d.style.backgroundImage = `url('${DEFAULT_THUMB}')`; // visible immediately
   resolveThumb(realIndex).then(url => { d.style.backgroundImage = `url('${url}')`; });
   d.addEventListener("click", () => snapToReal(realIndex));
   return d;
@@ -136,20 +136,20 @@ async function render() {
 
   calcUnit();
 
-  // Set logical center to the middle copy
+  // Start centered on index 1 (2022) in middle copy
   strip._centerIdx = BASE_CENTER();
-  centerOn(strip._centerIdx, false);
+  centerOn(BASE_CENTER(), false);
   activateByReal(1);
   showMedia(videos[1]);
 
   strip.addEventListener("transitionend", onTransitionEnd);
 }
 
-/* ---------- Layout / transform helpers ---------- */
+/* ---------- Layout / transform ---------- */
 function calcUnit() {
   const el = strip.querySelector(".thumb");
-  const w = el ? el.getBoundingClientRect().width : cssNum("--thumb-w") || 180;
-  const gap = parseFloat(getComputedStyle(strip).gap || cssNum("--gap") || 36);
+  const w = el ? el.getBoundingClientRect().width : parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--thumb-w")) || 180;
+  const gap = parseFloat(getComputedStyle(strip).gap || getComputedStyle(document.documentElement).getPropertyValue("--gap")) || 36;
   state.unit = w + gap;
 }
 function translateForCentered(childIndex) {
@@ -170,11 +170,8 @@ function activateByReal(realIndex) {
   );
 }
 
-/* ---------- Infinite loop core with constant center ---------- */
-function getCenterIdx() { return strip._centerIdx || (strip._centerIdx = BASE_CENTER()); }
-
+/* ---------- Infinite loop core ---------- */
 function normalizeAfterSteps(steps) {
-  // Move DOM nodes to keep the logical center fixed at BASE_CENTER()
   if (steps > 0) {
     for (let i = 0; i < steps; i++) strip.appendChild(strip.firstElementChild);
   } else if (steps < 0) {
@@ -183,31 +180,28 @@ function normalizeAfterSteps(steps) {
   strip.style.transition = "none";
   centerOn(BASE_CENTER(), false);
 }
-
 function onTransitionEnd(e) {
   if (e.target !== strip) return;
   const steps = strip._pendingSteps || 0;
   if (!steps) { state.moving = false; return; }
-
-  // Normalize loop
   normalizeAfterSteps(steps);
   strip._pendingSteps = 0;
   state.moving = false;
-
-  // Update active + media based on middle child
   const centerChild = strip.children[BASE_CENTER()];
   const realIndex = parseInt(centerChild.dataset.realIndex, 10);
   activateByReal(realIndex);
   showMedia(videos[realIndex]);
 }
 
-/* ---------- One-step arrows ---------- */
+/* ---------- Arrows (exactly 1 step) ---------- */
 function stepOne(dir) {
   if (state.moving) return;
   state.moving = true;
   strip._pendingSteps = dir; // ±1
   centerOn(BASE_CENTER() + dir, true);
 }
+arrowR.addEventListener("click", () => stepOne(1));
+arrowL.addEventListener("click", () => stepOne(-1));
 
 /* ---------- Desktop click: smooth to exact video (nearest copy) ---------- */
 function findClosestChildIndexForReal(realIndex) {
@@ -221,59 +215,37 @@ function findClosestChildIndexForReal(realIndex) {
   }
   return best;
 }
-
 function snapToReal(realIndex) {
   if (state.moving) return;
   const targetIdx = findClosestChildIndexForReal(realIndex);
   if (targetIdx === -1) return;
   const steps = targetIdx - BASE_CENTER();
-  if (steps === 0) {
-    activateByReal(realIndex);
-    showMedia(videos[realIndex]);
-    return;
-  }
+  if (steps === 0) { activateByReal(realIndex); showMedia(videos[realIndex]); return; }
   state.moving = true;
   strip._pendingSteps = steps;
   centerOn(BASE_CENTER() + steps, true);
 }
 
-/* ---------- Momentum (mobile) ---------- */
-function stepsFromMomentum(totalDx, vPxPerMs) {
-  // Free-scroll inertia: s = v^2/(2a). Choose a gentle decel.
-  const a = 0.0045; // px/ms^2
-  const extra = Math.sign(vPxPerMs) * (vPxPerMs * vPxPerMs) / (2 * a);
-  const intended = totalDx + extra; // px
-  let steps = Math.round(intended / state.unit);
-  const cap = 6;
-  if (steps > cap) steps = cap;
-  if (steps < -cap) steps = -cap;
-  if (steps === 0 && Math.abs(intended) > state.unit * 0.25) steps = Math.sign(intended);
-  return steps;
-}
-
-let dragging = false, startX = 0, lastX = 0, lastT = 0, v = 0;
+/* ---------- Mobile: speed-sensitive swipe (1–4 steps), ease-out ---------- */
+let dragging = false, startX = 0, lastX = 0, swipeStartT = 0, lastMoveT = 0;
 wrap.addEventListener("touchstart", e => {
   if (!isTouch() || state.moving) return;
   dragging = true;
   const t = e.touches[0];
   startX = lastX = t.clientX;
-  lastT = performance.now();
-  v = 0;
+  swipeStartT = lastMoveT = performance.now();
   strip.style.transition = "none";
 }, { passive: true });
 
 wrap.addEventListener("touchmove", e => {
   if (!dragging) return;
   const t = e.touches[0];
-  const now = performance.now();
-  const dx = t.clientX - lastX;
-  const dt = Math.max(1, now - lastT);
-  v = dx / dt; // px/ms
   lastX = t.clientX;
-  lastT = now;
-
-  const baseXMatch = /translate3d\(([-0-9.]+)px/.exec(translateForCentered(BASE_CENTER()));
-  const baseX = baseXMatch ? parseFloat(baseXMatch[1]) : 0;
+  lastMoveT = performance.now();
+  const baseX = (() => {
+    const m = /translate3d\(([-0-9.]+)px/.exec(translateForCentered(BASE_CENTER()));
+    return m ? parseFloat(m[1]) : 0;
+  })();
   const totalDx = t.clientX - startX;
   strip.style.transform = `translate3d(${baseX + totalDx}px,0,0)`;
 }, { passive: true });
@@ -281,27 +253,39 @@ wrap.addEventListener("touchmove", e => {
 wrap.addEventListener("touchend", () => {
   if (!dragging) return;
   dragging = false;
-  const totalDx = lastX - startX;
-  const steps = stepsFromMomentum(totalDx, v);
+
+  const totalDx = lastX - startX;           // px (right positive)
+  const dt = Math.max(1, lastMoveT - swipeStartT); // ms
+  const velocity = totalDx / dt;            // px/ms
+
+  // Direction: left swipe (negative dx) => move forward (+steps)
+  let steps = 0;
+  const speedFactor = Math.min(MAX_STEPS, Math.floor(Math.abs(velocity) * 12)); // tune factor 12
+  const distanceFactor = Math.floor(Math.abs(totalDx) / (state.unit * 0.6));    // distance backup
+  steps = Math.max(1, Math.min(MAX_STEPS, Math.max(speedFactor, distanceFactor)));
+
+  // Map direction: left swipe => next (+steps), right swipe => prev (-steps)
+  steps = totalDx < 0 ? steps : -steps;
+
+  // If tiny swipe, snap back
+  if (Math.abs(totalDx) < state.unit * 0.15) steps = 0;
+
   if (steps === 0) {
     centerOn(BASE_CENTER(), true);
     return;
   }
+
   if (state.moving) return;
   state.moving = true;
   strip._pendingSteps = steps;
   centerOn(BASE_CENTER() + steps, true);
 }, { passive: true });
 
-/* ---------- Controls ---------- */
-arrowR.addEventListener("click", () => stepOne(1));
-arrowL.addEventListener("click", () => stepOne(-1));
-
 /* ---------- Resize + Orientation ---------- */
-function recalcAndCenter() {
-  calcUnit();
-  strip.style.transition = "none";
-  centerOn(BASE_CENTER(), false);
+function recalcAndCenter() { 
+  calcUnit(); 
+  strip.style.transition = "none"; 
+  centerOn(BASE_CENTER(), false); 
 }
 let rto;
 window.addEventListener("resize", () => { clearTimeout(rto); rto = setTimeout(recalcAndCenter, 120); });
