@@ -1,6 +1,7 @@
 :root {
-  --player-w: 1280px;
-  --thumb-w: 210px;
+  /* Unified scale so player + strip stay in sync */
+  --player-w: clamp(320px, 86vw, 1280px);
+  --thumb-w: clamp(140px, 12vw, 210px);
   --gap: 36px;
   --move-t: 300ms;  /* unified with JS; smoother */
   --fade-t: 420ms;
@@ -29,7 +30,7 @@ html, body {
 
 /* Main Container */
 .stage {
-  max-width:1400px;
+  max-width:1600px;
   margin:0 auto;
   padding:0 18px;
 }
@@ -68,8 +69,8 @@ html, body {
   background:#000;
 }
 .filmstrip-viewport {
-  width:calc((var(--thumb-w)*5)+(var(--gap)*4));
-  max-width:90vw;
+  width: min(calc((var(--thumb-w)*5) + (var(--gap)*4)), var(--player-w));
+  max-width: 90vw;
   overflow:hidden;
   position:relative;
 }
@@ -106,13 +107,13 @@ html, body {
 /* Arrows */
 .arrow {
   position:absolute;
-  top:42%;
+  top:50%;
   transform:translateY(-50%);
   background:none;
   border:none;
   color:#ccc;
-  width:38px;
-  height:38px;
+  width:42px;
+  height:42px;
   font-size:42px;
   cursor:pointer;
   z-index:10;
