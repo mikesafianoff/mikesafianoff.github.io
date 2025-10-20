@@ -1,20 +1,22 @@
 /* ========================================
-   Portfolio Reel — Speed-Sensitive Swipe + Seamless Loop
-   - Infinite loop restored via triplicate + recycle
-   - Arrows: exactly 1 step per click (ease-out)
+   Portfolio Reel — Seamless Loop + Speed-Sensitive Swipe (fixed)
+   - Infinite loop via DOM recycle with constant center index
+   - Easing: ease-out (smoother, less snappy)
+   - Arrows: exactly 1 step per click (smooth)
    - Desktop: click thumbnail → smooth to exact video
-   - Mobile: speed-sensitive swipe (1–4 steps), ease-out, correct direction
-   - Vimeo thumbs: fetch + preload; draw immediately
+   - Mobile: speed-sensitive swipe with per-orientation caps
+       • Portrait max 3, Landscape max 5
+   - Vimeo/custom thumbs: fetch + preload; draw immediately
 ======================================== */
 
 /* ---------- Constants ---------- */
 const SLIDES_EMBED =
   "https://docs.google.com/presentation/d/15g1qwIg_L9d_c9nFa1tIBOqP5yHU3__oGkUJSyVaSM8/embed?start=false&loop=false";
 const DEFAULT_THUMB = "assets/2016_reel.png";
-const EASE = "ease-out";
-const MOVE_T = () =>
-  (getComputedStyle(document.documentElement).getPropertyValue("--move-t") || "300ms").trim();
-const MAX_STEPS = 4; // max thumbnails per fast swipe
+const EASE = "ease-out"; // changed from cubic-bezier to ease-out
+const MOVE_T = () => (getComputedStyle(document.documentElement).getPropertyValue("--move-t") || "300ms").trim();
+const PORTRAIT_MAX = 3;
+const LANDSCAPE_MAX = 5;
 
 /* ---------- Videos (order) ---------- */
 const videos = [
@@ -50,12 +52,14 @@ const arrowR   = document.getElementById("arrow-right");
 const state = { unit: 0, moving: false };
 const vimeoThumbCache = new Map();
 const resolvedThumbs  = new Map();
-const BASE_CENTER = () => videos.length + 1;
+const BASE_CENTER = () => videos.length + 1; // logical center index in middle copy
 
 /* ---------- Helpers ---------- */
+const cssNum      = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n));
 const toPlayerUrl = u => u.replace("vimeo.com/", "player.vimeo.com/video/");
 const isVimeo     = v => v.type === "vimeo";
 const isTouch     = () => ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+const isLandscape = () => window.innerWidth > window.innerHeight;
 
 /* ---------- Vimeo thumbnail fetch + preload ---------- */
 async function fetchVimeoThumb(url) {
@@ -114,7 +118,7 @@ async function createThumb(realIndex) {
   const d = document.createElement("div");
   d.className = "thumb";
   d.dataset.realIndex = String(realIndex);
-  d.style.backgroundImage = `url('${DEFAULT_THUMB}')`; // visible immediately
+  d.style.backgroundImage = `url('${DEFAULT_THUMB}')`; // immediate placeholder
   resolveThumb(realIndex).then(url => { d.style.backgroundImage = `url('${url}')`; });
   d.addEventListener("click", () => snapToReal(realIndex));
   return d;
@@ -136,20 +140,20 @@ async function render() {
 
   calcUnit();
 
-  // Start centered on index 1 (2022) in middle copy
+  // Set logical center to the middle copy; start on video index 1
   strip._centerIdx = BASE_CENTER();
-  centerOn(BASE_CENTER(), false);
+  centerOn(strip._centerIdx, false);
   activateByReal(1);
   showMedia(videos[1]);
 
   strip.addEventListener("transitionend", onTransitionEnd);
 }
 
-/* ---------- Layout / transform ---------- */
+/* ---------- Layout / transform helpers ---------- */
 function calcUnit() {
   const el = strip.querySelector(".thumb");
-  const w = el ? el.getBoundingClientRect().width : parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--thumb-w")) || 180;
-  const gap = parseFloat(getComputedStyle(strip).gap || getComputedStyle(document.documentElement).getPropertyValue("--gap")) || 36;
+  const w = el ? el.getBoundingClientRect().width : cssNum("--thumb-w") || 180;
+  const gap = parseFloat(getComputedStyle(strip).gap || cssNum("--gap") || 36);
   state.unit = w + gap;
 }
 function translateForCentered(childIndex) {
@@ -170,8 +174,11 @@ function activateByReal(realIndex) {
   );
 }
 
-/* ---------- Infinite loop core ---------- */
+/* ---------- Infinite loop core with constant center ---------- */
+function getCenterIdx() { return strip._centerIdx || (strip._centerIdx = BASE_CENTER()); }
+
 function normalizeAfterSteps(steps) {
+  // Move DOM nodes to keep the logical center fixed at BASE_CENTER()
   if (steps > 0) {
     for (let i = 0; i < steps; i++) strip.appendChild(strip.firstElementChild);
   } else if (steps < 0) {
@@ -180,28 +187,31 @@ function normalizeAfterSteps(steps) {
   strip.style.transition = "none";
   centerOn(BASE_CENTER(), false);
 }
+
 function onTransitionEnd(e) {
   if (e.target !== strip) return;
   const steps = strip._pendingSteps || 0;
   if (!steps) { state.moving = false; return; }
+
+  // Normalize loop
   normalizeAfterSteps(steps);
   strip._pendingSteps = 0;
   state.moving = false;
+
+  // Update active + media based on middle child
   const centerChild = strip.children[BASE_CENTER()];
   const realIndex = parseInt(centerChild.dataset.realIndex, 10);
   activateByReal(realIndex);
   showMedia(videos[realIndex]);
 }
 
-/* ---------- Arrows (exactly 1 step) ---------- */
+/* ---------- One-step arrows ---------- */
 function stepOne(dir) {
   if (state.moving) return;
   state.moving = true;
   strip._pendingSteps = dir; // ±1
   centerOn(BASE_CENTER() + dir, true);
 }
-arrowR.addEventListener("click", () => stepOne(1));
-arrowL.addEventListener("click", () => stepOne(-1));
 
 /* ---------- Desktop click: smooth to exact video (nearest copy) ---------- */
 function findClosestChildIndexForReal(realIndex) {
@@ -220,32 +230,67 @@ function snapToReal(realIndex) {
   const targetIdx = findClosestChildIndexForReal(realIndex);
   if (targetIdx === -1) return;
   const steps = targetIdx - BASE_CENTER();
-  if (steps === 0) { activateByReal(realIndex); showMedia(videos[realIndex]); return; }
+  if (steps === 0) {
+    activateByReal(realIndex);
+    showMedia(videos[realIndex]);
+    return;
+  }
   state.moving = true;
   strip._pendingSteps = steps;
   centerOn(BASE_CENTER() + steps, true);
 }
 
-/* ---------- Mobile: speed-sensitive swipe (1–4 steps), ease-out ---------- */
-let dragging = false, startX = 0, lastX = 0, swipeStartT = 0, lastMoveT = 0;
+/* ---------- Swipe: speed-sensitive with orientation caps (FIXED) ---------- */
+function maxStepsByOrientation() {
+  return isLandscape() ? LANDSCAPE_MAX : PORTRAIT_MAX;
+}
+function stepsFromGesture(totalDx, vPxPerMs) {
+  // totalDx: drag distance (px), right positive
+  // vPxPerMs: last sampled velocity (px/ms), right positive
+  const unit = state.unit || 1;
+
+  // Score from distance & velocity
+  const distScore  = Math.abs(totalDx) / (unit * 0.65); // more weight to distance
+  const speedScore = Math.abs(vPxPerMs) * 10;           // tempered velocity
+  let steps = Math.floor(Math.max(distScore, speedScore));
+
+  // Minimum 1 if meaningful gesture
+  if (steps === 0 && Math.abs(totalDx) > unit * 0.25) steps = 1;
+
+  // Direction: left swipe (negative dx) => next (+steps), right => prev (-steps)
+  steps = totalDx < 0 ? +steps : -steps;
+
+  // Cap by orientation
+  const cap = maxStepsByOrientation();
+  if (steps > cap) steps = cap;
+  if (steps < -cap) steps = -cap;
+
+  return steps;
+}
+
+let dragging = false, startX = 0, lastX = 0, lastT = 0, v = 0;
 wrap.addEventListener("touchstart", e => {
   if (!isTouch() || state.moving) return;
   dragging = true;
   const t = e.touches[0];
   startX = lastX = t.clientX;
-  swipeStartT = lastMoveT = performance.now();
+  lastT = performance.now();
+  v = 0;
   strip.style.transition = "none";
 }, { passive: true });
 
 wrap.addEventListener("touchmove", e => {
   if (!dragging) return;
   const t = e.touches[0];
+  const now = performance.now();
+  const dx = t.clientX - lastX;
+  const dt = Math.max(1, now - lastT);
+  v = dx / dt; // px/ms
   lastX = t.clientX;
-  lastMoveT = performance.now();
-  const baseX = (() => {
-    const m = /translate3d\(([-0-9.]+)px/.exec(translateForCentered(BASE_CENTER()));
-    return m ? parseFloat(m[1]) : 0;
-  })();
+  lastT = now;
+
+  const baseXMatch = /translate3d\(([-0-9.]+)px/.exec(translateForCentered(BASE_CENTER()));
+  const baseX = baseXMatch ? parseFloat(baseXMatch[1]) : 0;
   const totalDx = t.clientX - startX;
   strip.style.transform = `translate3d(${baseX + totalDx}px,0,0)`;
 }, { passive: true });
@@ -253,39 +298,25 @@ wrap.addEventListener("touchmove", e => {
 wrap.addEventListener("touchend", () => {
   if (!dragging) return;
   dragging = false;
+  const totalDx = lastX - startX;
+  const steps = stepsFromGesture(totalDx, v);
 
-  const totalDx = lastX - startX;           // px (right positive)
-  const dt = Math.max(1, lastMoveT - swipeStartT); // ms
-  const velocity = totalDx / dt;            // px/ms
-
-  // Direction: left swipe (negative dx) => move forward (+steps)
-  let steps = 0;
-  const speedFactor = Math.min(MAX_STEPS, Math.floor(Math.abs(velocity) * 12)); // tune factor 12
-  const distanceFactor = Math.floor(Math.abs(totalDx) / (state.unit * 0.6));    // distance backup
-  steps = Math.max(1, Math.min(MAX_STEPS, Math.max(speedFactor, distanceFactor)));
-
-  // Map direction: left swipe => next (+steps), right swipe => prev (-steps)
-  steps = totalDx < 0 ? steps : -steps;
-
-  // If tiny swipe, snap back
-  if (Math.abs(totalDx) < state.unit * 0.15) steps = 0;
-
-  if (steps === 0) {
-    centerOn(BASE_CENTER(), true);
-    return;
-  }
-
+  if (steps === 0) { centerOn(BASE_CENTER(), true); return; }
   if (state.moving) return;
   state.moving = true;
   strip._pendingSteps = steps;
   centerOn(BASE_CENTER() + steps, true);
 }, { passive: true });
 
+/* ---------- Controls ---------- */
+arrowR.addEventListener("click", () => stepOne(1));
+arrowL.addEventListener("click", () => stepOne(-1));
+
 /* ---------- Resize + Orientation ---------- */
-function recalcAndCenter() { 
-  calcUnit(); 
-  strip.style.transition = "none"; 
-  centerOn(BASE_CENTER(), false); 
+function recalcAndCenter() {
+  calcUnit();
+  strip.style.transition = "none";
+  centerOn(BASE_CENTER(), false);
 }
 let rto;
 window.addEventListener("resize", () => { clearTimeout(rto); rto = setTimeout(recalcAndCenter, 120); });
