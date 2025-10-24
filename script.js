@@ -1,24 +1,15 @@
 /* ========================================
    Portfolio Reel — Seamless Loop + Speed-Sensitive Swipe (fixed)
-   - Infinite loop via DOM recycle with constant center index
-   - Easing: ease-out (smoother, less snappy)
-   - Arrows: exactly 1 step per click (smooth)
-   - Desktop: click thumbnail → smooth to exact video
-   - Mobile: speed-sensitive swipe with per-orientation caps
-       • Portrait max 3, Landscape max 5
-   - Vimeo/custom thumbs: fetch + preload; draw immediately
 ======================================== */
 
-/* ---------- Constants ---------- */
 const SLIDES_EMBED =
   "https://docs.google.com/presentation/d/17XXa0-IBXnov5hnLZK8UmIBrW--vIQbkb4iYLnRr3h8/embed?start=false&loop=false";
 const DEFAULT_THUMB = "assets/2016_reel.png";
-const EASE = "ease-out"; // changed from cubic-bezier to ease-out
+const EASE = "ease-out";
 const MOVE_T = () => (getComputedStyle(document.documentElement).getPropertyValue("--move-t") || "300ms").trim();
 const PORTRAIT_MAX = 3;
 const LANDSCAPE_MAX = 5;
 
-/* ---------- Videos (order) ---------- */
 const videos = [
   { type: "slides", title: "Meta • Realtime / Avatars — (Google Slides embed)", url: SLIDES_EMBED, thumb: "assets/meta_thumb.png" },
   { type: "vimeo",  title: "2022 Animated Reel — (start on this video)", url: "https://vimeo.com/841625715?fl=pl&fe=sh", thumb: "assets/2022_reel.png" },
@@ -37,10 +28,9 @@ const videos = [
   { type: "vimeo",  title: "BioShock 2",                 url: "https://vimeo.com/15718152?fl=pl&fe=sh",  thumb: "assets/bio2_thumb.png" },
   { type: "vimeo",  title: "Spiderwick Chronicles",      url: "https://vimeo.com/4833250?fl=pl&fe=sh",   thumb: "assets/spiderwick.png" },
   { type: "vimeo",  title: "Superman Returns",           url: "https://vimeo.com/4830488?fl=pl&fe=sh",   thumb: "assets/superman_thumb.png" },
-  { type: "vimeo",  title: "Keeper (updated)",           url: "https://vimeo.com/1130347494?fl=pl&fe=sh", thumb: "assets/keeper_thumb.png" },
+  { type: "vimeo",  title: "Keeper (updated)",           url: "https://vimeo.com/1130380413?fl=pl&fe=sh", thumb: "assets/keeper_thumb.png" },
 ];
 
-/* ---------- DOM ---------- */
 const shell    = document.getElementById("video-shell");
 const strip    = document.getElementById("filmstrip");
 const viewport = document.querySelector(".filmstrip-viewport");
@@ -48,20 +38,17 @@ const wrap     = document.getElementById("filmstrip-wrap");
 const arrowL   = document.getElementById("arrow-left");
 const arrowR   = document.getElementById("arrow-right");
 
-/* ---------- State ---------- */
 const state = { unit: 0, moving: false };
 const vimeoThumbCache = new Map();
 const resolvedThumbs  = new Map();
 const BASE_CENTER = () => videos.length + 1;
 
-/* ---------- Helpers ---------- */
 const cssNum      = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n));
 const toPlayerUrl = u => u.replace("vimeo.com/", "player.vimeo.com/video/");
 const isVimeo     = v => v.type === "vimeo";
 const isTouch     = () => ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 const isLandscape = () => window.innerWidth > window.innerHeight;
 
-/* ---------- Vimeo thumbnail fetch + preload ---------- */
 async function fetchVimeoThumb(url) {
   if (vimeoThumbCache.has(url)) return vimeoThumbCache.get(url);
   try {
@@ -92,7 +79,6 @@ async function resolveThumb(realIndex) {
   return url;
 }
 
-/* ---------- Player ---------- */
 function showMedia(item) {
   shell.innerHTML = "";
   const iframe = document.createElement("iframe");
@@ -113,7 +99,6 @@ function showMedia(item) {
   }
 }
 
-/* ---------- Build thumbnail ---------- */
 async function createThumb(realIndex) {
   const d = document.createElement("div");
   d.className = "thumb";
@@ -124,18 +109,14 @@ async function createThumb(realIndex) {
   return d;
 }
 
-/* ---------- Initial render ---------- */
 async function render() {
   strip.innerHTML = "";
-
   videos.forEach((_, i) => resolveThumb(i));
-
   for (let k = 0; k < 3; k++) {
     for (let i = 0; i < videos.length; i++) {
       strip.appendChild(await createThumb(i));
     }
   }
-
   calcUnit();
   strip._centerIdx = BASE_CENTER();
   centerOn(strip._centerIdx, false);
@@ -144,7 +125,6 @@ async function render() {
   strip.addEventListener("transitionend", onTransitionEnd);
 }
 
-/* ---------- Layout ---------- */
 function calcUnit() {
   const el = strip.querySelector(".thumb");
   const w = el ? el.getBoundingClientRect().width : cssNum("--thumb-w") || 180;
@@ -162,14 +142,12 @@ function centerOn(childIndex, animate = true) {
   if (!animate) { void strip.offsetWidth; strip.style.transition = ""; }
 }
 
-/* ---------- Active highlight ---------- */
 function activateByReal(realIndex) {
   Array.from(strip.children).forEach(el =>
     el.classList.toggle("playing", parseInt(el.dataset.realIndex, 10) === realIndex)
   );
 }
 
-/* ---------- Infinite loop ---------- */
 function getCenterIdx() { return strip._centerIdx || (strip._centerIdx = BASE_CENTER()); }
 
 function normalizeAfterSteps(steps) {
@@ -197,7 +175,6 @@ function onTransitionEnd(e) {
   showMedia(videos[realIndex]);
 }
 
-/* ---------- Controls ---------- */
 function stepOne(dir) {
   if (state.moving) return;
   state.moving = true;
@@ -205,7 +182,6 @@ function stepOne(dir) {
   centerOn(BASE_CENTER() + dir, true);
 }
 
-/* ---------- Desktop click ---------- */
 function findClosestChildIndexForReal(realIndex) {
   const kids = strip.children;
   let best = -1, bestDist = Infinity;
@@ -232,7 +208,6 @@ function snapToReal(realIndex) {
   centerOn(BASE_CENTER() + steps, true);
 }
 
-/* ---------- Swipe ---------- */
 function maxStepsByOrientation() {
   return isLandscape() ? LANDSCAPE_MAX : PORTRAIT_MAX;
 }
@@ -289,7 +264,6 @@ wrap.addEventListener("touchend", () => {
   centerOn(BASE_CENTER() + steps, true);
 }, { passive: true });
 
-/* ---------- Init ---------- */
 arrowR.addEventListener("click", () => stepOne(1));
 arrowL.addEventListener("click", () => stepOne(-1));
 
@@ -304,7 +278,6 @@ window.addEventListener("orientationchange", () => { setTimeout(recalcAndCenter,
 
 render();
 
-/* ---------- Copy email ---------- */
 const emailLink = document.getElementById("email-link");
 const copyIcon  = document.getElementById("copy-icon");
 const copyText  = document.getElementById("copy-text");
