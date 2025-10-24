@@ -11,7 +11,7 @@
 
 /* ---------- Constants ---------- */
 const SLIDES_EMBED =
-  "https://docs.google.com/presentation/d/15g1qwIg_L9d_c9nFa1tIBOqP5yHU3__oGkUJSyVaSM8/embed?start=false&loop=false";
+  "https://docs.google.com/presentation/d/17XXa0-IBXnov5hnLZK8UmIBrW--vIQbkb4iYLnRr3h8/embed?start=false&loop=false";
 const DEFAULT_THUMB = "assets/2016_reel.png";
 const EASE = "ease-out"; // changed from cubic-bezier to ease-out
 const MOVE_T = () => (getComputedStyle(document.documentElement).getPropertyValue("--move-t") || "300ms").trim();
@@ -178,7 +178,6 @@ function activateByReal(realIndex) {
 function getCenterIdx() { return strip._centerIdx || (strip._centerIdx = BASE_CENTER()); }
 
 function normalizeAfterSteps(steps) {
-  // Move DOM nodes to keep the logical center fixed at BASE_CENTER()
   if (steps > 0) {
     for (let i = 0; i < steps; i++) strip.appendChild(strip.firstElementChild);
   } else if (steps < 0) {
@@ -193,12 +192,10 @@ function onTransitionEnd(e) {
   const steps = strip._pendingSteps || 0;
   if (!steps) { state.moving = false; return; }
 
-  // Normalize loop
   normalizeAfterSteps(steps);
   strip._pendingSteps = 0;
   state.moving = false;
 
-  // Update active + media based on middle child
   const centerChild = strip.children[BASE_CENTER()];
   const realIndex = parseInt(centerChild.dataset.realIndex, 10);
   activateByReal(realIndex);
@@ -209,11 +206,11 @@ function onTransitionEnd(e) {
 function stepOne(dir) {
   if (state.moving) return;
   state.moving = true;
-  strip._pendingSteps = dir; // ±1
+  strip._pendingSteps = dir;
   centerOn(BASE_CENTER() + dir, true);
 }
 
-/* ---------- Desktop click: smooth to exact video (nearest copy) ---------- */
+/* ---------- Desktop click: smooth to exact video ---------- */
 function findClosestChildIndexForReal(realIndex) {
   const kids = strip.children;
   let best = -1, bestDist = Infinity;
@@ -240,31 +237,20 @@ function snapToReal(realIndex) {
   centerOn(BASE_CENTER() + steps, true);
 }
 
-/* ---------- Swipe: speed-sensitive with orientation caps (FIXED) ---------- */
+/* ---------- Swipe: speed-sensitive ---------- */
 function maxStepsByOrientation() {
   return isLandscape() ? LANDSCAPE_MAX : PORTRAIT_MAX;
 }
 function stepsFromGesture(totalDx, vPxPerMs) {
-  // totalDx: drag distance (px), right positive
-  // vPxPerMs: last sampled velocity (px/ms), right positive
   const unit = state.unit || 1;
-
-  // Score from distance & velocity
-  const distScore  = Math.abs(totalDx) / (unit * 0.65); // more weight to distance
-  const speedScore = Math.abs(vPxPerMs) * 10;           // tempered velocity
+  const distScore  = Math.abs(totalDx) / (unit * 0.65);
+  const speedScore = Math.abs(vPxPerMs) * 10;
   let steps = Math.floor(Math.max(distScore, speedScore));
-
-  // Minimum 1 if meaningful gesture
   if (steps === 0 && Math.abs(totalDx) > unit * 0.25) steps = 1;
-
-  // Direction: left swipe (negative dx) => next (+steps), right => prev (-steps)
   steps = totalDx < 0 ? +steps : -steps;
-
-  // Cap by orientation
   const cap = maxStepsByOrientation();
   if (steps > cap) steps = cap;
   if (steps < -cap) steps = -cap;
-
   return steps;
 }
 
@@ -285,7 +271,7 @@ wrap.addEventListener("touchmove", e => {
   const now = performance.now();
   const dx = t.clientX - lastX;
   const dt = Math.max(1, now - lastT);
-  v = dx / dt; // px/ms
+  v = dx / dt;
   lastX = t.clientX;
   lastT = now;
 
