@@ -37,7 +37,7 @@ const videos = [
   { type: "vimeo",  title: "BioShock 2",                 url: "https://vimeo.com/15718152?fl=pl&fe=sh",  thumb: "assets/bio2_thumb.png" },
   { type: "vimeo",  title: "Spiderwick Chronicles",      url: "https://vimeo.com/4833250?fl=pl&fe=sh",   thumb: "assets/spiderwick.png" },
   { type: "vimeo",  title: "Superman Returns",           url: "https://vimeo.com/4830488?fl=pl&fe=sh",   thumb: "assets/superman_thumb.png" },
-  { type: "vimeo",  title: "Keeper (placeholder)",       url: "https://vimeo.com/1128683237",            thumb: "assets/keeper_thumb.png" },
+  { type: "vimeo",  title: "Keeper (updated)",           url: "https://vimeo.com/1130347494?fl=pl&fe=sh", thumb: "assets/keeper_thumb.png" },
 ];
 
 /* ---------- DOM ---------- */
@@ -52,7 +52,7 @@ const arrowR   = document.getElementById("arrow-right");
 const state = { unit: 0, moving: false };
 const vimeoThumbCache = new Map();
 const resolvedThumbs  = new Map();
-const BASE_CENTER = () => videos.length + 1; // logical center index in middle copy
+const BASE_CENTER = () => videos.length + 1;
 
 /* ---------- Helpers ---------- */
 const cssNum      = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n));
@@ -118,7 +118,7 @@ async function createThumb(realIndex) {
   const d = document.createElement("div");
   d.className = "thumb";
   d.dataset.realIndex = String(realIndex);
-  d.style.backgroundImage = `url('${DEFAULT_THUMB}')`; // immediate placeholder
+  d.style.backgroundImage = `url('${DEFAULT_THUMB}')`;
   resolveThumb(realIndex).then(url => { d.style.backgroundImage = `url('${url}')`; });
   d.addEventListener("click", () => snapToReal(realIndex));
   return d;
@@ -128,10 +128,8 @@ async function createThumb(realIndex) {
 async function render() {
   strip.innerHTML = "";
 
-  // Warm thumbs (non-blocking)
   videos.forEach((_, i) => resolveThumb(i));
 
-  // Triplicate for seamless loop
   for (let k = 0; k < 3; k++) {
     for (let i = 0; i < videos.length; i++) {
       strip.appendChild(await createThumb(i));
@@ -139,17 +137,14 @@ async function render() {
   }
 
   calcUnit();
-
-  // Set logical center to the middle copy; start on video index 1
   strip._centerIdx = BASE_CENTER();
   centerOn(strip._centerIdx, false);
   activateByReal(1);
   showMedia(videos[1]);
-
   strip.addEventListener("transitionend", onTransitionEnd);
 }
 
-/* ---------- Layout / transform helpers ---------- */
+/* ---------- Layout ---------- */
 function calcUnit() {
   const el = strip.querySelector(".thumb");
   const w = el ? el.getBoundingClientRect().width : cssNum("--thumb-w") || 180;
@@ -174,7 +169,7 @@ function activateByReal(realIndex) {
   );
 }
 
-/* ---------- Infinite loop core with constant center ---------- */
+/* ---------- Infinite loop ---------- */
 function getCenterIdx() { return strip._centerIdx || (strip._centerIdx = BASE_CENTER()); }
 
 function normalizeAfterSteps(steps) {
@@ -202,7 +197,7 @@ function onTransitionEnd(e) {
   showMedia(videos[realIndex]);
 }
 
-/* ---------- One-step arrows ---------- */
+/* ---------- Controls ---------- */
 function stepOne(dir) {
   if (state.moving) return;
   state.moving = true;
@@ -210,7 +205,7 @@ function stepOne(dir) {
   centerOn(BASE_CENTER() + dir, true);
 }
 
-/* ---------- Desktop click: smooth to exact video ---------- */
+/* ---------- Desktop click ---------- */
 function findClosestChildIndexForReal(realIndex) {
   const kids = strip.children;
   let best = -1, bestDist = Infinity;
@@ -237,7 +232,7 @@ function snapToReal(realIndex) {
   centerOn(BASE_CENTER() + steps, true);
 }
 
-/* ---------- Swipe: speed-sensitive ---------- */
+/* ---------- Swipe ---------- */
 function maxStepsByOrientation() {
   return isLandscape() ? LANDSCAPE_MAX : PORTRAIT_MAX;
 }
@@ -294,11 +289,10 @@ wrap.addEventListener("touchend", () => {
   centerOn(BASE_CENTER() + steps, true);
 }, { passive: true });
 
-/* ---------- Controls ---------- */
+/* ---------- Init ---------- */
 arrowR.addEventListener("click", () => stepOne(1));
 arrowL.addEventListener("click", () => stepOne(-1));
 
-/* ---------- Resize + Orientation ---------- */
 function recalcAndCenter() {
   calcUnit();
   strip.style.transition = "none";
@@ -308,10 +302,9 @@ let rto;
 window.addEventListener("resize", () => { clearTimeout(rto); rto = setTimeout(recalcAndCenter, 120); });
 window.addEventListener("orientationchange", () => { setTimeout(recalcAndCenter, 120); });
 
-/* ---------- Init ---------- */
 render();
 
-/* ---------- Copy-to-Clipboard (email) ---------- */
+/* ---------- Copy email ---------- */
 const emailLink = document.getElementById("email-link");
 const copyIcon  = document.getElementById("copy-icon");
 const copyText  = document.getElementById("copy-text");
