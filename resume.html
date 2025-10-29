@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mike Safianoff — Resume</title>
+<link rel="icon" href="assets/favicon.png" />
+<style>
+  body {
+    margin: 0;
+    background: #000;
+    color: #fff;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 0 10px;
+    width: 100%;
+    background: #000;
+  }
+
+  .hero-img {
+    width: min(1100px, 85vw);
+    height: auto;
+    object-fit: contain;
+    display: block;
+    transition: transform 0.25s ease;
+    cursor: pointer;
+  }
+
+  .hero-img:hover {
+    transform: scale(1.035);
+  }
+
+  main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 20px;
+    padding: 0 10px 60px;
+  }
+
+  .resume-img {
+    width: min(100%, 1000px);
+    height: auto;
+    border: none;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <a href="index.html">
+    <img class="hero-img" src="assets/main.png" alt="Back to Main Page" title="Back to Main Page" />
+  </a>
+</header>
+
+<main>
+  <img src="assets/resume.png" alt="Resume — Mike Safianoff" class="resume-img" />
+</main>
+
+</body>
+</html>
