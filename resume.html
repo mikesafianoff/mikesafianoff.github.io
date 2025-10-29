@@ -21,38 +21,42 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 20px 0 10px;
+    padding: 45px 0 0; /* 50% more top spacing (30px → 45px) */
     width: 100%;
     background: #000;
   }
 
   .hero-img {
-    width: min(1100px, 85vw);
+    width: 10%;
+    min-width: 90px;
+    max-width: 160px;
     height: auto;
     object-fit: contain;
     display: block;
-    transition: transform 0.25s ease;
+    transition: transform 0.25s ease, opacity 0.25s ease;
     cursor: pointer;
   }
 
   .hero-img:hover {
-    transform: scale(1.035);
+    transform: scale(1.05);
+    opacity: 0.9;
   }
 
   main {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     width: 100%;
-    margin-top: 20px;
-    padding: 0 10px 60px;
+    margin-top: 1px; /* reduced 70% (was 3px) */
+    padding: 0 10px 40px;
   }
 
   .resume-img {
-    width: min(100%, 1000px);
+    width: min(180%, 1800px);
+    max-width: 1800px;
     height: auto;
     border: none;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.85);
   }
 </style>
 </head>
