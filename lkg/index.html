@@ -7,24 +7,32 @@
 <link rel="icon" href="assets/favicon.png" />
 <link rel="stylesheet" href="style.css" />
 <style>
-.hero-img { width: min(1100px, 85vw); height: auto; object-fit: contain; display: block; transition: transform .25s ease; }
+.hero-img {
+  width: min(1100px, 85vw);
+  height: auto;
+  object-fit: contain;
+  display: block;
+  transition: transform .25s ease;
+  cursor: pointer;
+}
 .hero-img:hover { transform: scale(1.035); }
+body { background: #000; }
 </style>
 </head>
 <body>
 <header class="hero">
-<a href="https://www.linkedin.com/in/mikesafianoff" target="_blank" rel="noopener">
-<img class="hero-img" src="assets/header.png"
-alt="MIKE SAFIANOFF — Senior / Lead / Supervising Animator" />
+<a href="resume.html" rel="noopener">
+  <img
+    class="hero-img"
+    src="assets/header.png"
+    alt="MIKE SAFIANOFF — Senior / Lead / Supervising Animator" />
 </a>
 </header>
-
 
 <main class="stage">
 <section id="player-frame">
 <div class="video-shell" id="video-shell"></div>
 </section>
-
 
 <section class="filmstrip-wrap" id="filmstrip-wrap">
 <button id="arrow-left" class="arrow" aria-label="previous" type="button">❮</button>
@@ -34,14 +42,12 @@ alt="MIKE SAFIANOFF — Senior / Lead / Supervising Animator" />
 <button id="arrow-right" class="arrow" aria-label="next" type="button">❯</button>
 </section>
 
-
 <div class="contact-email">
 <a id="email-link" href="mailto:mikesafianoff@gmail.com">mikesafianoff@gmail.com</a>
 <img id="copy-icon" class="copy-icon" src="assets/Copy.png" alt="Copy email" title="Copy email" />
 <span id="copy-text" class="copy-text">Copied</span>
 </div>
 </main>
-
 
 <script src="script.js"></script>
 </body>
